@@ -1,7 +1,7 @@
 'use client'
 // src/app/page.tsx
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { GameType } from '@/lib/gameTypes'
 import TurtleSoup from './components/TurtleSoup'
 import Riddle from './components/Riddle'
@@ -50,8 +50,12 @@ export default function Home() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [gameData, setGameData] = useState<any>(null)
   const [streak, setStreak] = useState(0)
+  const hasLoaded = useRef(false)
 
   useEffect(() => {
+	if (hasLoaded.current) return
+	hasLoaded.current = true
+  
     async function load() {
       // Check localStorage cache first
       const cacheKey = getTodayKey()

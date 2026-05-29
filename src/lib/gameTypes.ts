@@ -31,7 +31,8 @@ export function getGameTypeForDate(date: Date): GameType {
     date.getFullYear() * 10000 +
     (date.getMonth() + 1) * 100 +
     date.getDate()
-  return GAME_TYPES[seed % GAME_TYPES.length]
+  // return GAME_TYPES[seed % GAME_TYPES.length]
+  return GAME_TYPES[0]
 }
 
 export const GAME_PROMPTS: Record<GameTypeId, string> = {
