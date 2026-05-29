@@ -3,7 +3,7 @@
 
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import { NextRequest, NextResponse } from 'next/server'
-import { GAME_PROMPTS, getGameTypeForDate, GameTypeId } from '@/lib/gameTypes'
+import { GAME_PROMPTS, getGameTypeForDate, GameTypeId, GAME_SAMPLE } from '@/lib/gameTypes'
 
 const genAI = new GoogleGenerativeAI(
   process.env.GEMINI_API_KEY!
@@ -29,6 +29,11 @@ export async function GET(req: NextRequest) {
     // Strip markdown fences if present
     const json = raw.replace(/```json|```/g, '').trim()
     const gameData = JSON.parse(json)
+	
+	// use GAME_SAMPLE if dont want to waste rate limits
+	// const gameDatas = GAME_SAMPLE[gameType.id as GameTypeId]
+	// const randomIndex = Math.floor(Math.random() * gameDatas.length)
+	// const gameData = gameDatas[randomIndex]
 
     return NextResponse.json({
       gameType,

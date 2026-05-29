@@ -9,14 +9,30 @@ interface RiddleData { title: string; riddles: RiddleItem[] }
 export default function Riddle({ data }: { data: RiddleData }) {
   const [current, setCurrent] = useState(0)
   const [revealed, setRevealed] = useState<boolean[]>(data.riddles.map(() => false))
+  const [answers, setAnswers] = useState<string[]>(data.riddles.map(() => ''))
+  const [checked, setChecked] = useState<boolean[]>(data.riddles.map(() => false))
+
+  const allDone = current >= data.riddles.length
 
   const riddle = data.riddles[current]
   const isRevealed = revealed[current]
+  const isChecked = checked[current]
+  const userAnswer = answers[current] || ''
+  const isCorrect = !allDone && normalizeAnswer(userAnswer) === normalizeAnswer(riddle.answer)
   const isLast = current === data.riddles.length - 1
-  const allDone = current >= data.riddles.length
+
+  function normalizeAnswer(value: string) {
+    return value.toLowerCase().replace(/[\s，。！？、,.!?]/g, '')
+  }
 
   function reveal() {
     setRevealed(prev => prev.map((v, i) => i === current ? true : v))
+  }
+
+  function checkAnswer() {
+    if (!userAnswer.trim()) return
+    setChecked(prev => prev.map((v, i) => i === current ? true : v))
+    if (isCorrect) reveal()
   }
 
   if (allDone) {
@@ -45,6 +61,36 @@ export default function Riddle({ data }: { data: RiddleData }) {
       <p className="font-serif text-base font-semibold text-stone-800 leading-relaxed mb-5">
         {riddle.question}
       </p>
+
+      <div className="mb-4">
+        <div className="flex gap-2">
+          <input
+            value={userAnswer}
+            onChange={e => {
+              const next = e.target.value
+              setAnswers(prev => prev.map((v, i) => i === current ? next : v))
+              setChecked(prev => prev.map((v, i) => i === current ? false : v))
+            }}
+            onKeyDown={e => {
+              if (e.key === 'Enter') checkAnswer()
+            }}
+            placeholder="输入你的答案..."
+            className="min-w-0 flex-1 rounded-lg border border-stone-200 px-3 py-2 text-sm text-stone-700 outline-none focus:border-stone-400"
+          />
+          <button
+            onClick={checkAnswer}
+            disabled={!userAnswer.trim()}
+            className="rounded-lg bg-stone-800 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-stone-700 disabled:cursor-not-allowed disabled:bg-stone-300"
+          >
+            检查
+          </button>
+        </div>
+        {isChecked && (
+          <p className={`mt-2 text-sm font-medium ${isCorrect ? 'text-green-700' : 'text-red-500'}`}>
+            {isCorrect ? '答对了！' : '还不对，可以再想想。'}
+          </p>
+        )}
+      </div>
 
       {/* Answer */}
       {isRevealed && (
