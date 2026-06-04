@@ -1,12 +1,15 @@
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import { NextRequest, NextResponse } from 'next/server'
+import { toLanguage } from '@/lib/i18n'
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!)
 const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash'
 
 export async function POST(req: NextRequest) {
   try {
-    const { scenario, answer, keyPoints, question } = await req.json()
+    const { scenario, answer, keyPoints, question, lang: rawLang } = await req.json()
+    const lang = toLanguage(rawLang)
+    const languageName = lang === 'zh' ? 'Chinese' : 'English'
 
     if (!question || !answer) {
       return NextResponse.json(
@@ -15,11 +18,11 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const prompt = `You are the host of a Chinese turtle soup lateral thinking puzzle.
+    const prompt = `You are the host of a turtle soup lateral thinking puzzle.
 Only answer the player's question based on the truth below.
-Reply in Chinese with valid JSON only:
+Reply in ${languageName} with valid JSON only:
 {
-  "reply": "只能是：是 / 不是 / 不重要 / 无法判断, plus one short sentence if helpful",
+  "reply": "Only answer yes / no / not important / cannot determine, plus one short sentence if helpful",
   "isRelevant": true
 }
 

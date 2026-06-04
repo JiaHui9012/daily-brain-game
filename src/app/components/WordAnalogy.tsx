@@ -2,11 +2,34 @@
 // src/app/components/WordAnalogy.tsx
 
 import { useState } from 'react'
+import { Language } from '@/lib/i18n'
 
 interface Question { stem: string; options: string[]; answer: number; explanation: string }
 interface WordAnalogyData { title: string; intro: string; questions: Question[] }
 
-export default function WordAnalogy({ data }: { data: WordAnalogyData }) {
+const TEXT = {
+  en: {
+    correctCount: 'correct',
+    perfect: 'Perfect score! Nicely done!',
+    good: 'Great work. Keep going!',
+    tomorrow: 'Come back tomorrow for a new challenge!',
+    question: 'Question',
+    next: 'Next',
+    results: 'View Results',
+  },
+  zh: {
+    correctCount: '答对',
+    perfect: '满分！太厉害了！',
+    good: '很棒！继续加油！',
+    tomorrow: '明天继续挑战！',
+    question: '题',
+    next: '下一题',
+    results: '查看结果',
+  },
+}
+
+export default function WordAnalogy({ data, lang }: { data: WordAnalogyData; lang: Language }) {
+  const text = TEXT[lang]
   const [current, setCurrent] = useState(0)
   const [selected, setSelected] = useState<(number | null)[]>(data.questions.map(() => null))
   const [score, setScore] = useState(0)
@@ -27,10 +50,10 @@ export default function WordAnalogy({ data }: { data: WordAnalogyData }) {
       <div className="text-center py-8">
         <div className="text-5xl mb-4">{score >= 3 ? '🎉' : '💪'}</div>
         <p className="font-serif text-xl font-semibold text-stone-700 mb-1">
-          {score} / {data.questions.length} 答对
+          {score} / {data.questions.length} {text.correctCount}
         </p>
         <p className="text-sm text-stone-400">
-          {score === 4 ? '满分！太厉害了！' : score >= 3 ? '很棒！继续加油！' : '明天继续挑战！'}
+          {score === data.questions.length ? text.perfect : score >= 3 ? text.good : text.tomorrow}
         </p>
       </div>
     )
@@ -40,9 +63,10 @@ export default function WordAnalogy({ data }: { data: WordAnalogyData }) {
     <div>
       <p className="text-sm text-stone-400 mb-4">{data.intro}</p>
 
-      {/* Progress */}
       <div className="flex items-center justify-between mb-4">
-        <span className="text-xs text-stone-400 font-medium">第 {current + 1} / {data.questions.length} 题</span>
+        <span className="text-xs text-stone-400 font-medium">
+          {lang === 'zh' ? `第 ${current + 1} / ${data.questions.length} 题` : `${text.question} ${current + 1} / ${data.questions.length}`}
+        </span>
         <div className="flex gap-1">
           {data.questions.map((_, i) => (
             <div key={i} className={`w-1.5 h-1.5 rounded-full ${i <= current ? 'bg-stone-500' : 'bg-stone-200'}`} />
@@ -52,7 +76,6 @@ export default function WordAnalogy({ data }: { data: WordAnalogyData }) {
 
       <p className="font-serif text-base font-semibold text-stone-800 leading-relaxed mb-5">{q.stem}</p>
 
-      {/* Options */}
       <div className="grid grid-cols-2 gap-2 mb-4">
         {q.options.map((opt, idx) => {
           let cls = 'border border-stone-200 rounded-lg py-3 px-4 text-sm font-medium text-center cursor-pointer transition-colors'
@@ -71,20 +94,18 @@ export default function WordAnalogy({ data }: { data: WordAnalogyData }) {
         })}
       </div>
 
-      {/* Explanation */}
       {sel !== null && (
         <div className="bg-stone-50 border border-stone-200 rounded-lg p-3 mb-4 text-sm text-stone-600 leading-relaxed">
           {q.explanation}
         </div>
       )}
 
-      {/* Next */}
       {sel !== null && (
         <button
           onClick={() => setCurrent(c => c + 1)}
           className="w-full bg-stone-800 text-white rounded-lg py-2.5 text-sm font-medium hover:bg-stone-700 transition-colors"
         >
-          {current < data.questions.length - 1 ? '下一题' : '查看结果'}
+          {current < data.questions.length - 1 ? text.next : text.results}
         </button>
       )}
     </div>

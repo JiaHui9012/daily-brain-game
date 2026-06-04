@@ -2,11 +2,32 @@
 // src/app/components/Sequence.tsx
 
 import { useState } from 'react'
+import { Language } from '@/lib/i18n'
 
 interface SeqItem { sequence: (number | string)[]; answer: number; rule: string }
 interface SequenceData { title: string; intro: string; sequences: SeqItem[] }
 
-export default function Sequence({ data }: { data: SequenceData }) {
+const TEXT = {
+  en: {
+    question: 'Question',
+    placeholder: 'Answer',
+    confirm: 'Confirm',
+    correct: 'Correct!',
+    answerIs: 'Correct answer:',
+    rule: 'Rule:',
+  },
+  zh: {
+    question: '第',
+    placeholder: '填入答案',
+    confirm: '确认',
+    correct: '答对了！',
+    answerIs: '正确答案是',
+    rule: '规律：',
+  },
+}
+
+export default function Sequence({ data, lang }: { data: SequenceData; lang: Language }) {
+  const text = TEXT[lang]
   const [answers, setAnswers] = useState<string[]>(data.sequences.map(() => ''))
   const [checked, setChecked] = useState<boolean[]>(data.sequences.map(() => false))
 
@@ -22,7 +43,9 @@ export default function Sequence({ data }: { data: SequenceData }) {
         const correct = parseInt(answers[i]) === seq.answer
         return (
           <div key={i} className="mb-6">
-            <div className="text-xs text-stone-400 font-medium mb-2">第 {i + 1} 题</div>
+            <div className="text-xs text-stone-400 font-medium mb-2">
+              {lang === 'zh' ? `第 ${i + 1} 题` : `${text.question} ${i + 1}`}
+            </div>
             <div className="flex items-center gap-2 flex-wrap mb-3">
               {seq.sequence.map((n, j) => (
                 <span key={j}>
@@ -44,7 +67,7 @@ export default function Sequence({ data }: { data: SequenceData }) {
               <div className="flex gap-2">
                 <input
                   type="number"
-                  placeholder="填入答案"
+                  placeholder={text.placeholder}
                   value={answers[i]}
                   onChange={e => setAnswers(prev => prev.map((v, j) => j === i ? e.target.value : v))}
                   className="w-32 border border-stone-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-stone-400"
@@ -53,13 +76,13 @@ export default function Sequence({ data }: { data: SequenceData }) {
                   onClick={() => check(i)}
                   className="border border-stone-300 text-stone-600 rounded-lg px-4 py-2 text-sm hover:bg-stone-50 transition-colors"
                 >
-                  确认
+                  {text.confirm}
                 </button>
               </div>
             ) : (
               <div className={`text-sm px-3 py-2 rounded-lg ${correct ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
-                {correct ? '✓ 答对了！' : `✗ 正确答案是 ${seq.answer}`}
-                {' · '}规律：{seq.rule}
+                {correct ? `✓ ${text.correct}` : `✗ ${text.answerIs} ${seq.answer}`}
+                {' · '}{text.rule}{seq.rule}
               </div>
             )}
           </div>

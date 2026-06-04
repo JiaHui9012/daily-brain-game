@@ -3,7 +3,8 @@
 
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import { NextRequest, NextResponse } from 'next/server'
-import { GAME_PROMPTS, getGameTypeForDate, GameTypeId, GAME_SAMPLE } from '@/lib/gameTypes'
+import { getGamePrompt, getGameTypeForDate, GameTypeId, GAME_SAMPLE } from '@/lib/gameTypes'
+import { toLanguage } from '@/lib/i18n'
 
 const genAI = new GoogleGenerativeAI(
   process.env.GEMINI_API_KEY!
@@ -13,10 +14,11 @@ const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash'
 export async function GET(req: NextRequest) {
   // Accept an optional ?date=YYYY-MM-DD for testing; defaults to today
   const dateParam = req.nextUrl.searchParams.get('date')
+  const lang = toLanguage(req.nextUrl.searchParams.get('lang'))
   const date = dateParam ? new Date(dateParam) : new Date()
 
-  const gameType = getGameTypeForDate(date)
-  const prompt = GAME_PROMPTS[gameType.id as GameTypeId]
+  const gameType = getGameTypeForDate(date, lang)
+  const prompt = getGamePrompt(gameType.id, lang)
 
   try {
     const model = genAI.getGenerativeModel({

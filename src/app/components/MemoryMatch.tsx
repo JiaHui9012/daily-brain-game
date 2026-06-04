@@ -1,11 +1,27 @@
 'use client'
 // src/app/components/MemoryMatch.tsx
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useRef } from 'react'
+import { Language } from '@/lib/i18n'
 
 interface CardPair { id: number; emoji: string; label: string }
 interface MemoryData { title: string; theme: string; pairs: CardPair[] }
 interface Card extends CardPair { uid: number }
+
+const TEXT = {
+  en: {
+    theme: 'Theme:',
+    instruction: 'Find all matching pairs',
+    moves: 'Moves:',
+    complete: 'Complete! Total moves:',
+  },
+  zh: {
+    theme: '主题：',
+    instruction: '找出所有配对',
+    moves: '步数：',
+    complete: '完成！共用了',
+  },
+}
 
 function shuffle<T>(arr: T[]): T[] {
   const a = [...arr]
@@ -16,7 +32,8 @@ function shuffle<T>(arr: T[]): T[] {
   return a
 }
 
-export default function MemoryMatch({ data }: { data: MemoryData }) {
+export default function MemoryMatch({ data, lang }: { data: MemoryData; lang: Language }) {
+  const text = TEXT[lang]
   const [cards] = useState<Card[]>(() =>
     shuffle([...data.pairs, ...data.pairs].map((p, i) => ({ ...p, uid: i })))
   )
@@ -58,7 +75,9 @@ export default function MemoryMatch({ data }: { data: MemoryData }) {
 
   return (
     <div>
-      <p className="text-sm text-stone-400 text-center mb-4">主题：{data.theme} · 找出所有配对</p>
+      <p className="text-sm text-stone-400 text-center mb-4">
+        {text.theme}{data.theme} · {text.instruction}
+      </p>
 
       <div className="memory-grid mb-4">
         {cards.map((card, i) => {
@@ -77,12 +96,14 @@ export default function MemoryMatch({ data }: { data: MemoryData }) {
       </div>
 
       <div className="text-center text-sm text-stone-400 mb-3">
-        步数：<strong className="text-stone-700">{moves}</strong>
+        {text.moves}<strong className="text-stone-700">{moves}</strong>
       </div>
 
       {done && (
         <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
-          <p className="text-green-700 font-medium">🎉 完成！共用了 {moves} 步</p>
+          <p className="text-green-700 font-medium">
+            🎉 {lang === 'zh' ? `${text.complete} ${moves} 步` : `${text.complete} ${moves}`}
+          </p>
         </div>
       )}
     </div>

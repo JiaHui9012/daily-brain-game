@@ -1,8 +1,9 @@
 'use client'
 // src/app/page.tsx
 
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState } from 'react'
 import { GameType } from '@/lib/gameTypes'
+import { LANGUAGES, Language, toLanguage } from '@/lib/i18n'
 import TurtleSoup from './components/TurtleSoup'
 import Riddle from './components/Riddle'
 import WordAnalogy from './components/WordAnalogy'
@@ -11,14 +12,47 @@ import Sudoku from './components/Sudoku'
 import LogicPuzzle from './components/LogicPuzzle'
 import MemoryMatch from './components/MemoryMatch'
 
-function formatDate() {
-  const d = new Date()
-  const days = ['日', '一', '二', '三', '四', '五', '六']
-  return `${d.getMonth() + 1} 月 ${d.getDate()} 日 · 星期${days[d.getDay()]}`
+const UI_TEXT = {
+  en: {
+    appTitle: 'Daily Brain Training',
+    subtitle: 'One AI-generated mini game each day to keep your mind active.',
+    loading: "AI is generating today's game. Please wait...",
+    failed: 'Generation failed: ',
+    reload: 'Reload',
+    streakPrefix: 'Current streak',
+    streakSuffix: 'days',
+    difficulty: { easy: 'Easy', medium: 'Medium', hard: 'Hard' },
+  },
+  zh: {
+    appTitle: '每日脑力训练',
+    subtitle: '每天一个 AI 生成的小游戏，保持大脑活跃',
+    loading: 'AI 正在生成今日游戏，请稍候...',
+    failed: '生成失败：',
+    reload: '重新加载',
+    streakPrefix: '连续挑战',
+    streakSuffix: '天',
+    difficulty: { easy: '简单', medium: '中等', hard: '困难' },
+  },
 }
 
-function getTodayKey() {
+function formatDate(lang: Language) {
   const d = new Date()
+
+  if (lang === 'zh') {
+    const days = ['日', '一', '二', '三', '四', '五', '六']
+    return `${d.getMonth() + 1} 月 ${d.getDate()} 日 · 星期${days[d.getDay()]}`
+  }
+
+  return d.toLocaleDateString('en', {
+    month: 'long',
+    day: 'numeric',
+    weekday: 'long',
+  })
+}
+
+function getTodayKey(lang: Language) {
+  const d = new Date()
+  // return `brain_game_${lang}_${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`
   return `brain_game_${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`
 }
 
@@ -44,27 +78,39 @@ function updateStreak() {
 }
 
 export default function Home() {
+  const [lang, setLang] = useState<Language>('en')
+  const [currentLang, setCurrentLang] = useState<Language | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [gameType, setGameType] = useState<GameType | null>(null)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [gameData, setGameData] = useState<any>(null)
   const [streak, setStreak] = useState(0)
-  const hasLoaded = useRef(false)
 
   useEffect(() => {
-	if (hasLoaded.current) return
-	hasLoaded.current = true
-  
+    const savedLang = toLanguage(localStorage.getItem('brain_lang'))
+    setLang(savedLang)
+    setCurrentLang(savedLang)
+  }, [])
+
+  useEffect(() => {
+    if (currentLang === null) return
+    let cancelled = false
+
     async function load() {
-      // Check localStorage cache first
-      const cacheKey = getTodayKey()
+      setLoading(true)
+      setError(null)
+      setGameType(null)
+      setGameData(null)
+
+      const cacheKey = getTodayKey(currentLang)
       const cached = localStorage.getItem(cacheKey)
       if (cached) {
         try {
           const { gameType, gameData } = JSON.parse(cached)
+          if (cancelled) return
           setGameType(gameType)
-          setGameData(gameData)
+          setGameData(gameData[currentLang])
           updateStreak()
           setStreak(getStreak())
           setLoading(false)
@@ -74,26 +120,36 @@ export default function Home() {
         }
       }
 
-      // Fetch from backend API
       try {
-        const res = await fetch('/api/generate-game')
+        const res = await fetch(`/api/generate-game?lang=${currentLang}`)
         if (!res.ok) throw new Error(`Server error ${res.status}`)
         const data = await res.json()
+        if (cancelled) return
         setGameType(data.gameType)
-        setGameData(data.gameData)
+        setGameData(data.gameData[currentLang])
         localStorage.setItem(cacheKey, JSON.stringify({ gameType: data.gameType, gameData: data.gameData }))
         updateStreak()
         setStreak(getStreak())
       } catch (e: unknown) {
-        setError(e instanceof Error ? e.message : 'Unknown error')
+        if (!cancelled) setError(e instanceof Error ? e.message : 'Unknown error')
       } finally {
-        setLoading(false)
+        if (!cancelled) setLoading(false)
       }
     }
-    load()
-  }, [])
 
-  const diffLabel = { easy: '简单', medium: '中等', hard: '困难' }
+    load()
+	return () => { cancelled = true }
+  }, [currentLang])
+  
+  
+  function switchLang(newLang: Language) {
+    setLang(newLang)
+    localStorage.setItem('brain_lang', newLang)
+    setCurrentLang(newLang)
+  }
+
+  const text = UI_TEXT[lang]
+  const diffLabel = text.difficulty
   const diffColor = {
     easy: 'bg-green-100 text-green-800',
     medium: 'bg-amber-100 text-amber-800',
@@ -103,41 +159,51 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-stone-100 py-8 px-4">
       <div className="max-w-2xl mx-auto">
-
-        {/* Header */}
         <div className="text-center mb-8">
           <div className="inline-block text-xs font-medium tracking-widest text-stone-500 bg-white border border-stone-200 rounded-full px-4 py-1 mb-4">
-            {formatDate()}
+            {formatDate(lang)}
           </div>
-          <h1 className="font-serif text-3xl font-bold text-stone-800 mb-1">每日脑力训练</h1>
-          <p className="text-sm text-stone-500 font-light">每天一个 AI 生成的小游戏，保持大脑活跃</p>
+          <h1 className="font-serif text-3xl font-bold text-stone-800 mb-1">{text.appTitle}</h1>
+          <p className="text-sm text-stone-500 font-light mb-4">{text.subtitle}</p>
+          <div className="inline-flex rounded-lg border border-stone-200 bg-white p-1">
+            {LANGUAGES.map(option => (
+              <button
+                key={option.id}
+                onClick={() => switchLang(option.id)}
+                className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                  lang === option.id
+                    ? 'bg-stone-800 text-white'
+                    : 'text-stone-500 hover:bg-stone-50'
+                }`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
         </div>
 
-        {/* Game Card */}
         <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden shadow-sm">
-
           {loading && (
             <div className="text-center py-16 px-6">
               <div className="spinner mb-4" />
-              <p className="text-sm text-stone-400">AI 正在生成今日游戏，请稍候...</p>
+              <p className="text-sm text-stone-400">{text.loading}</p>
             </div>
           )}
 
           {error && (
             <div className="text-center py-16 px-6">
-              <p className="text-sm text-stone-500 mb-4">生成失败：{error}</p>
+              <p className="text-sm text-stone-500 mb-4">{text.failed}{error}</p>
               <button
                 onClick={() => { setError(null); setLoading(true); window.location.reload() }}
                 className="px-6 py-2 bg-stone-800 text-white rounded-lg text-sm font-medium hover:bg-stone-700 transition-colors"
               >
-                重新加载
+                {text.reload}
               </button>
             </div>
           )}
 
           {!loading && !error && gameType && gameData && (
             <>
-              {/* Game header */}
               <div className="flex items-center gap-3 px-6 py-4 border-b border-stone-100">
                 <div className="w-10 h-10 bg-stone-100 rounded-xl flex items-center justify-center text-xl flex-shrink-0">
                   {gameType.icon}
@@ -150,27 +216,25 @@ export default function Home() {
                     {gameData.title}
                   </div>
                 </div>
-                <span className={`text-xs font-medium px-3 py-1 rounded-full flex-shrink-0 ${diffColor[gameType.difficulty]}`}>
-                  {diffLabel[gameType.difficulty]}
+                <span className={`text-xs font-medium px-3 py-1 rounded-full flex-shrink-0 ${diffColor[gameData.difficulty]}`}>
+                  {diffLabel[gameData.difficulty]}
                 </span>
               </div>
 
-              {/* Game body */}
               <div className="p-6">
-                {gameType.id === 'turtle_soup'  && <TurtleSoup data={gameData} />}
-                {gameType.id === 'riddle'        && <Riddle data={gameData} />}
-                {gameType.id === 'word_analogy'  && <WordAnalogy data={gameData} />}
-                {gameType.id === 'sequence'      && <Sequence data={gameData} />}
-                {gameType.id === 'sudoku'        && <Sudoku data={gameData} />}
-                {gameType.id === 'logic_puzzle'  && <LogicPuzzle data={gameData} />}
-                {gameType.id === 'memory_match'  && <MemoryMatch data={gameData} />}
+                {gameType.id === 'turtle_soup'  && <TurtleSoup data={gameData} lang={lang} />}
+                {gameType.id === 'riddle'        && <Riddle data={gameData} lang={lang} />}
+                {gameType.id === 'word_analogy'  && <WordAnalogy data={gameData} lang={lang} />}
+                {gameType.id === 'sequence'      && <Sequence data={gameData} lang={lang} />}
+                {gameType.id === 'sudoku'        && <Sudoku data={gameData} lang={lang} />}
+                {gameType.id === 'logic_puzzle'  && <LogicPuzzle data={gameData} lang={lang} />}
+                {gameType.id === 'memory_match'  && <MemoryMatch data={gameData} lang={lang} />}
               </div>
 
-              {/* Streak footer */}
               <div className="flex items-center justify-center gap-2 px-6 py-3 bg-stone-50 border-t border-stone-100 text-sm text-stone-400">
-                <span>连续挑战</span>
+                <span>{text.streakPrefix}</span>
                 <span className="text-xl font-bold text-stone-700">{streak}</span>
-                <span>天</span>
+                <span>{text.streakSuffix}</span>
               </div>
             </>
           )}

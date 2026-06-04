@@ -2,6 +2,7 @@
 // src/app/components/Sudoku.tsx
 
 import { useState } from 'react'
+import { Language } from '@/lib/i18n'
 
 interface SudokuData {
   title: string
@@ -10,7 +11,25 @@ interface SudokuData {
   solution: number[][]
 }
 
-export default function Sudoku({ data }: { data: SudokuData }) {
+const TEXT = {
+  en: {
+    check: 'Check Answer',
+    reset: 'Reset',
+    correct: '🎉 Completely correct! You finished today\'s Sudoku!',
+    wrong: 'Some cells are still wrong. Take another look!',
+    incomplete: 'There are still empty cells. Keep going!',
+  },
+  zh: {
+    check: '检查答案',
+    reset: '重置',
+    correct: '🎉 完全正确！恭喜你完成了今日数独！',
+    wrong: '还有些错误，再仔细想想！',
+    incomplete: '还有空格未填写，请继续努力！',
+  },
+}
+
+export default function Sudoku({ data, lang }: { data: SudokuData; lang: Language }) {
+  const text = TEXT[lang]
   const [userGrid, setUserGrid] = useState<(number | '')[][]>(
     data.puzzle.map(row => row.map(c => c === 0 ? '' : c))
   )
@@ -76,29 +95,29 @@ export default function Sudoku({ data }: { data: SudokuData }) {
           onClick={check}
           className="flex-1 border border-stone-300 text-stone-700 rounded-lg py-2.5 text-sm font-medium hover:bg-stone-50 transition-colors"
         >
-          检查答案
+          {text.check}
         </button>
         <button
           onClick={reset}
           className="border border-stone-200 text-stone-500 rounded-lg py-2.5 px-4 text-sm hover:bg-stone-50 transition-colors"
         >
-          重置
+          {text.reset}
         </button>
       </div>
 
       {result === 'correct' && (
         <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-sm text-green-700">
-          🎉 完全正确！恭喜你完成了今日数独！
+          {text.correct}
         </div>
       )}
       {result === 'wrong' && (
         <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">
-          还有些错误，再仔细想想！
+          {text.wrong}
         </div>
       )}
       {result === 'incomplete' && (
         <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-700">
-          还有空格未填写，请继续努力！
+          {text.incomplete}
         </div>
       )}
     </div>
