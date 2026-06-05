@@ -13,13 +13,17 @@ interface LogicData {
   answer_short: string
 }
 
+type CheckStatus = 'correct' | 'partial' | 'wrong'
+
 const TEXT = {
   en: {
     prompt: 'Prompt',
     answerLabel: 'Your Answer',
     placeholder: 'Type your answer...',
     check: 'Check',
+    checking: 'Checking',
     correct: 'Correct!',
+    partial: 'Almost there.',
     wrong: 'Not quite. Check a hint or keep reasoning.',
     hints: 'View hints',
     hint: 'Hint',
@@ -31,7 +35,9 @@ const TEXT = {
     answerLabel: '作答',
     placeholder: '输入你的答案...',
     check: '检查',
+    checking: '检查中',
     correct: '答对了！',
+    partial: '差一点。',
     wrong: '还不对，可以查看提示或继续推理。',
     hints: '查看提示',
     hint: '提示',
@@ -40,28 +46,69 @@ const TEXT = {
   },
 }
 
+function normalizeAnswer(value: string) {
+  return value.toLowerCase().replace(/[\s，。！？、,.!?]/g, '')
+}
+
 export default function LogicPuzzle({ data, lang }: { data: LogicData; lang: Language }) {
   const text = TEXT[lang]
   const [hintsOpen, setHintsOpen] = useState(false)
   const [answerOpen, setAnswerOpen] = useState(false)
   const [userAnswer, setUserAnswer] = useState('')
-  const [checked, setChecked] = useState(false)
-
-  function normalizeAnswer(value: string) {
-    return value.toLowerCase().replace(/[\s，。！？、,.!?]/g, '')
-  }
+  const [checking, setChecking] = useState(false)
+  const [checkResult, setCheckResult] = useState<{ status: CheckStatus; feedback: string } | null>(null)
 
   const correctAnswer = normalizeAnswer(data.answer_short)
   const normalizedUserAnswer = normalizeAnswer(userAnswer)
-  const isCorrect =
+  const exactMatch =
     normalizedUserAnswer.length > 0 &&
     (normalizedUserAnswer === correctAnswer ||
       correctAnswer.includes(normalizedUserAnswer) ||
       normalizedUserAnswer.includes(correctAnswer))
 
-  function checkAnswer() {
-    if (!userAnswer.trim()) return
-    setChecked(true)
+  async function checkAnswer() {
+    if (!userAnswer.trim() || checking) return
+
+    if (exactMatch) {
+      setCheckResult({ status: 'correct', feedback: text.correct })
+	  setAnswerOpen(true)
+      return
+    }
+
+    setChecking(true)
+    setCheckResult(null)
+
+    try {
+      const res = await fetch('/api/check-answer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          gameType: 'logic_puzzle',
+          scenario: data.scenario,
+          question: data.question,
+          correctAnswer: data.answer_short,
+          fullAnswer: data.answer,
+          userAnswer,
+          lang,
+        }),
+      })
+
+      if (!res.ok) throw new Error(`Server error ${res.status}`)
+      const result = await res.json()
+      const status: CheckStatus =
+        result.status === 'correct' || result.status === 'partial' ? result.status : 'wrong'
+
+      setCheckResult({
+        status,
+        feedback: result.feedback || (status === 'correct' ? text.correct : status === 'partial' ? text.partial : text.wrong),
+      })
+	  
+	  if (status === 'correct') setAnswerOpen(true)
+    } catch {
+      setCheckResult({ status: 'wrong', feedback: text.wrong })
+    } finally {
+      setChecking(false)
+    }
   }
 
   return (
@@ -83,7 +130,7 @@ export default function LogicPuzzle({ data, lang }: { data: LogicData; lang: Lan
             value={userAnswer}
             onChange={e => {
               setUserAnswer(e.target.value)
-              setChecked(false)
+              setCheckResult(null)
             }}
             onKeyDown={e => {
               if (e.key === 'Enter') checkAnswer()
@@ -93,15 +140,21 @@ export default function LogicPuzzle({ data, lang }: { data: LogicData; lang: Lan
           />
           <button
             onClick={checkAnswer}
-            disabled={!userAnswer.trim()}
+            disabled={!userAnswer.trim() || checking || answerOpen}
             className="rounded-lg bg-stone-800 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-stone-700 disabled:cursor-not-allowed disabled:bg-stone-300"
           >
-            {text.check}
+            {checking ? text.checking : text.check}
           </button>
         </div>
-        {checked && (
-          <p className={`mt-2 text-sm font-medium ${isCorrect ? 'text-green-700' : 'text-red-500'}`}>
-            {isCorrect ? text.correct : text.wrong}
+        {checkResult && (
+          <p className={`mt-2 text-sm font-medium ${
+            checkResult.status === 'correct'
+              ? 'text-green-700'
+              : checkResult.status === 'partial'
+                ? 'text-amber-600'
+                : 'text-red-500'
+          }`}>
+            {checkResult.feedback}
           </p>
         )}
       </div>
@@ -127,13 +180,15 @@ export default function LogicPuzzle({ data, lang }: { data: LogicData; lang: Lan
       </div>
 
       <div>
-        <button
-          onClick={() => setAnswerOpen(!answerOpen)}
-          className="w-full flex items-center gap-2 text-sm font-medium text-stone-700 border border-stone-300 rounded-lg px-4 py-2.5 hover:bg-stone-50 transition-colors text-left"
-        >
-          <span>👁</span>
-          <span>{text.reveal}</span>
-        </button>
+        {!answerOpen && (
+          <button
+            onClick={() => setAnswerOpen(true)}
+            className="w-full flex items-center gap-2 text-sm font-medium text-stone-700 border border-stone-300 rounded-lg px-4 py-2.5 hover:bg-stone-50 transition-colors text-left"
+          >
+            <span>👁</span>
+            <span>{text.reveal}</span>
+          </button>
+        )}
         {answerOpen && (
           <div className="mt-2 bg-stone-50 border border-stone-200 rounded-lg p-4">
             <p className="text-sm font-semibold text-stone-700 mb-2">{text.answer}{data.answer_short}</p>

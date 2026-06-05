@@ -23,7 +23,7 @@ Only answer the player's question based on the truth below.
 Reply in ${languageName} with valid JSON only:
 {
   "reply": "Only answer yes / no / not important / cannot determine, plus one short sentence if helpful",
-  "isRelevant": true
+  "isCorrect": true if you think the player input has reached the answer, else false 
 }
 
 Scenario: ${scenario || ''}

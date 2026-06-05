@@ -7,6 +7,8 @@ import { Language } from '@/lib/i18n'
 interface RiddleItem { question: string; answer: string; explanation: string }
 interface RiddleData { title: string; riddles: RiddleItem[] }
 
+type CheckStatus = 'correct' | 'partial' | 'wrong'
+
 const TEXT = {
   en: {
     completeTitle: 'All done!',
@@ -14,7 +16,9 @@ const TEXT = {
     question: 'Question',
     placeholder: 'Type your answer...',
     check: 'Check',
+    checking: 'Checking',
     correct: 'Correct!',
+    partial: 'Close, but not quite.',
     wrong: 'Not quite. Try again.',
     answer: 'Answer',
     reveal: 'Reveal answer',
@@ -28,7 +32,9 @@ const TEXT = {
     question: '题',
     placeholder: '输入你的答案...',
     check: '检查',
+    checking: '检查中',
     correct: '答对了！',
+    partial: '很接近，但还差一点。',
     wrong: '还不对，可以再想想。',
     answer: '答案',
     reveal: '揭晓答案',
@@ -38,33 +44,77 @@ const TEXT = {
   },
 }
 
+function normalizeAnswer(value: string) {
+  return value.toLowerCase().replace(/[\s，。！？、,.!?]/g, '')
+}
+
 export default function Riddle({ data, lang }: { data: RiddleData; lang: Language }) {
   const text = TEXT[lang]
   const [current, setCurrent] = useState(0)
   const [revealed, setRevealed] = useState<boolean[]>(data.riddles.map(() => false))
   const [answers, setAnswers] = useState<string[]>(data.riddles.map(() => ''))
-  const [checked, setChecked] = useState<boolean[]>(data.riddles.map(() => false))
+  const [checkResults, setCheckResults] = useState<({ status: CheckStatus; feedback: string } | null)[]>(
+    data.riddles.map(() => null)
+  )
+  const [checking, setChecking] = useState(false)
 
   const allDone = current >= data.riddles.length
   const riddle = data.riddles[current]
   const isRevealed = revealed[current]
-  const isChecked = checked[current]
   const userAnswer = answers[current] || ''
-  const isCorrect = !allDone && normalizeAnswer(userAnswer) === normalizeAnswer(riddle.answer)
+  const checkResult = checkResults[current]
+  const exactMatch = !allDone && normalizeAnswer(userAnswer) === normalizeAnswer(riddle.answer)
   const isLast = current === data.riddles.length - 1
-
-  function normalizeAnswer(value: string) {
-    return value.toLowerCase().replace(/[\s，。！？、,.!?]/g, '')
-  }
 
   function reveal() {
     setRevealed(prev => prev.map((v, i) => i === current ? true : v))
   }
 
-  function checkAnswer() {
-    if (!userAnswer.trim()) return
-    setChecked(prev => prev.map((v, i) => i === current ? true : v))
-    if (isCorrect) reveal()
+  async function checkAnswer() {
+    if (!userAnswer.trim() || checking) return
+
+    if (exactMatch) {
+      setCheckResults(prev => prev.map((v, i) => i === current ? { status: 'correct', feedback: text.correct } : v))
+      reveal()
+      return
+    }
+
+    setChecking(true)
+    setCheckResults(prev => prev.map((v, i) => i === current ? null : v))
+
+    try {
+      const res = await fetch('/api/check-answer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          gameType: 'riddle',
+          question: riddle.question,
+          correctAnswer: riddle.answer,
+          fullAnswer: riddle.explanation,
+          userAnswer,
+          lang,
+        }),
+      })
+
+      if (!res.ok) throw new Error(`Server error ${res.status}`)
+      const result = await res.json()
+      const status: CheckStatus =
+        result.status === 'correct' || result.status === 'partial' ? result.status : 'wrong'
+
+      setCheckResults(prev => prev.map((v, i) => i === current
+        ? {
+          status,
+          feedback: result.feedback || (status === 'correct' ? text.correct : status === 'partial' ? text.partial : text.wrong),
+        }
+        : v
+      ))
+
+      if (status === 'correct') reveal()
+    } catch {
+      setCheckResults(prev => prev.map((v, i) => i === current ? { status: 'wrong', feedback: text.wrong } : v))
+    } finally {
+      setChecking(false)
+    }
   }
 
   if (allDone) {
@@ -80,7 +130,9 @@ export default function Riddle({ data, lang }: { data: RiddleData; lang: Languag
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
-        <span className="text-xs text-stone-400 font-medium">{lang === 'zh' ? `第 ${current + 1} / ${data.riddles.length} 题` : `${text.question} ${current + 1} / ${data.riddles.length}`}</span>
+        <span className="text-xs text-stone-400 font-medium">
+          {lang === 'zh' ? `第 ${current + 1} / ${data.riddles.length} 题` : `${text.question} ${current + 1} / ${data.riddles.length}`}
+        </span>
         <div className="flex gap-1">
           {data.riddles.map((_, i) => (
             <div key={i} className={`w-1.5 h-1.5 rounded-full ${i <= current ? 'bg-stone-500' : 'bg-stone-200'}`} />
@@ -99,7 +151,7 @@ export default function Riddle({ data, lang }: { data: RiddleData; lang: Languag
             onChange={e => {
               const next = e.target.value
               setAnswers(prev => prev.map((v, i) => i === current ? next : v))
-              setChecked(prev => prev.map((v, i) => i === current ? false : v))
+              setCheckResults(prev => prev.map((v, i) => i === current ? null : v))
             }}
             onKeyDown={e => {
               if (e.key === 'Enter') checkAnswer()
@@ -109,15 +161,21 @@ export default function Riddle({ data, lang }: { data: RiddleData; lang: Languag
           />
           <button
             onClick={checkAnswer}
-            disabled={!userAnswer.trim()}
+            disabled={!userAnswer.trim() || checking || isRevealed}
             className="rounded-lg bg-stone-800 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-stone-700 disabled:cursor-not-allowed disabled:bg-stone-300"
           >
-            {text.check}
+            {checking ? text.checking : text.check}
           </button>
         </div>
-        {isChecked && (
-          <p className={`mt-2 text-sm font-medium ${isCorrect ? 'text-green-700' : 'text-red-500'}`}>
-            {isCorrect ? text.correct : text.wrong}
+        {checkResult && (
+          <p className={`mt-2 text-sm font-medium ${
+            checkResult.status === 'correct'
+              ? 'text-green-700'
+              : checkResult.status === 'partial'
+                ? 'text-amber-600'
+                : 'text-red-500'
+          }`}>
+            {checkResult.feedback}
           </p>
         )}
       </div>
