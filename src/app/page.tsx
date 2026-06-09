@@ -2,7 +2,7 @@
 // src/app/page.tsx
 
 import { useEffect, useState } from 'react'
-import { GameType } from '@/lib/gameTypes'
+import { GameType, getGameTypes } from '@/lib/gameTypes'
 import { LANGUAGES, Language, toLanguage } from '@/lib/i18n'
 import TurtleSoup from './components/TurtleSoup'
 import Riddle from './components/Riddle'
@@ -107,8 +107,9 @@ export default function Home() {
       const cached = localStorage.getItem(cacheKey)
       if (cached) {
         try {
-          const { gameType, gameData } = JSON.parse(cached)
+          const { gameTypeId, gameData } = JSON.parse(cached)
           if (cancelled) return
+		  const gameType: GameType = getGameTypes[currentLang].find((u) => u.id === gameTypeId);
           setGameType(gameType)
           setGameData(gameData[currentLang])
           updateStreak()
@@ -127,7 +128,7 @@ export default function Home() {
         if (cancelled) return
         setGameType(data.gameType)
         setGameData(data.gameData[currentLang])
-        localStorage.setItem(cacheKey, JSON.stringify({ gameType: data.gameType, gameData: data.gameData }))
+        localStorage.setItem(cacheKey, JSON.stringify({ gameTypeId: data.gameType.id, gameData: data.gameData }))
         updateStreak()
         setStreak(getStreak())
       } catch (e: unknown) {
