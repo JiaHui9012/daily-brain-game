@@ -109,32 +109,31 @@ export default function Home() {
         try {
           const { gameTypeId, gameData } = JSON.parse(cached)
           if (cancelled) return
-		  const gameType: GameType = getGameTypes[currentLang].find((u) => u.id === gameTypeId);
+		  const gameType = getGameTypes(currentLang).find((u) => u.id === gameTypeId);
           setGameType(gameType)
           setGameData(gameData[currentLang])
           updateStreak()
           setStreak(getStreak())
           setLoading(false)
-          return
         } catch {
           localStorage.removeItem(cacheKey)
         }
-      }
-
-      try {
-        const res = await fetch(`/api/generate-game?lang=${currentLang}`)
-        if (!res.ok) throw new Error(`Server error ${res.status}`)
-        const data = await res.json()
-        if (cancelled) return
-        setGameType(data.gameType)
-        setGameData(data.gameData[currentLang])
-        localStorage.setItem(cacheKey, JSON.stringify({ gameTypeId: data.gameType.id, gameData: data.gameData }))
-        updateStreak()
-        setStreak(getStreak())
-      } catch (e: unknown) {
-        if (!cancelled) setError(e instanceof Error ? e.message : 'Unknown error')
-      } finally {
-        if (!cancelled) setLoading(false)
+      } else {
+		  try {
+			const res = await fetch(`/api/generate-game?lang=${currentLang}`)
+			if (!res.ok) throw new Error(`Server error ${res.status}`)
+			const data = await res.json()
+			if (cancelled) return
+			setGameType(data.gameType)
+			setGameData(data.gameData[currentLang])
+			localStorage.setItem(cacheKey, JSON.stringify({ gameTypeId: data.gameType.id, gameData: data.gameData }))
+			updateStreak()
+			setStreak(getStreak())
+		  } catch (e: unknown) {
+			if (!cancelled) setError(e instanceof Error ? e.message : 'Unknown error')
+		  } finally {
+			if (!cancelled) setLoading(false)
+		  }
       }
     }
 

@@ -38,6 +38,8 @@ body {
 
 .sudoku-cell {
   background: white;
+  border: none;
+  color: #185FA5;
   aspect-ratio: 1;
   display: flex;
   align-items: center;
@@ -45,6 +47,27 @@ body {
   font-size: 16px;
   font-weight: 500;
   position: relative;
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.15s ease;
+  user-select: none;
+}
+
+.sudoku-cell:hover {
+  background: #f8f7f4;
+}
+
+.sudoku-cell.sudoku-related {
+  background: #f8f7f4;
+}
+
+.sudoku-cell.sudoku-selected {
+  background: #e7e5df;
+}
+
+.sudoku-cell.sudoku-wrong {
+  background: #fef2f2;
+  color: #b91c1c;
 }
 
 .sudoku-cell.border-right  { border-right: 2px solid #333; }

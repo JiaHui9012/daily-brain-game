@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getGamePrompt, getGameTypeForDate, GameTypeId, GAME_SAMPLE } from '@/lib/gameTypes'
 import { toLanguage } from '@/lib/i18n'
 import { validateGameData } from '@/lib/validateGame'
+import { generateSudoku, SudokuDifficulty  } from '@/lib/sudoku'
 
 // Gemini
 const genAI = new GoogleGenerativeAI(
@@ -29,6 +30,32 @@ export async function GET(req: NextRequest) {
   const prompt = getGamePrompt(gameType.id, lang)
 
   try {
+    if (gameType.id === 'sudoku') {
+      const difficulties: SudokuDifficulty[] = ['easy', 'medium', 'hard']
+      const randomDifficulty = difficulties[Math.floor(Math.random() * difficulties.length)]
+      const sudoku = generateSudoku(randomDifficulty)
+      const gameData = validateGameData(gameType.id, {
+        en: {
+          title: "Today's Sudoku",
+          difficulty: sudoku.difficulty,
+          puzzle: sudoku.puzzle,
+          solution: sudoku.solution,
+        },
+        zh: {
+          title: '今日数独',
+          difficulty: sudoku.difficulty,
+          puzzle: sudoku.puzzle,
+          solution: sudoku.solution,
+        },
+      })
+
+      return NextResponse.json({
+        gameType,
+        gameData,
+        date: date.toISOString().slice(0, 10),
+      })
+    }
+
 	// Gemini
     const model = genAI.getGenerativeModel({
       model: GEMINI_MODEL,
