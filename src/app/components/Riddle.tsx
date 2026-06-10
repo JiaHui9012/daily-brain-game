@@ -12,7 +12,7 @@ type CheckStatus = 'correct' | 'partial' | 'wrong'
 const TEXT = {
   en: {
     completeTitle: 'All done!',
-    completeText: 'Today\'s challenge is finished. Come back tomorrow!',
+    completeText: "Today's challenge is finished. Come back tomorrow!",
     question: 'Question',
     placeholder: 'Type your answer...',
     check: 'Check',
@@ -103,9 +103,9 @@ export default function Riddle({ data, lang }: { data: RiddleData; lang: Languag
 
       setCheckResults(prev => prev.map((v, i) => i === current
         ? {
-          status,
-          feedback: result.feedback || (status === 'correct' ? text.correct : status === 'partial' ? text.partial : text.wrong),
-        }
+            status,
+            feedback: result.feedback || (status === 'correct' ? text.correct : status === 'partial' ? text.partial : text.wrong),
+          }
         : v
       ))
 
@@ -153,9 +153,7 @@ export default function Riddle({ data, lang }: { data: RiddleData; lang: Languag
               setAnswers(prev => prev.map((v, i) => i === current ? next : v))
               setCheckResults(prev => prev.map((v, i) => i === current ? null : v))
             }}
-            onKeyDown={e => {
-              if (e.key === 'Enter') checkAnswer()
-            }}
+            onKeyDown={e => { if (e.key === 'Enter') checkAnswer() }}
             placeholder={text.placeholder}
             className="min-w-0 flex-1 rounded-lg border border-stone-200 px-3 py-2 text-sm text-stone-700 outline-none focus:border-stone-400"
           />

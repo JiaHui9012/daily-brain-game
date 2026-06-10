@@ -11,6 +11,7 @@ import Sequence from './components/Sequence'
 import Sudoku from './components/Sudoku'
 import LogicPuzzle from './components/LogicPuzzle'
 import MemoryMatch from './components/MemoryMatch'
+import HowToPlay from './components/HowToPlay'
 
 const UI_TEXT = {
   en: {
@@ -86,6 +87,7 @@ export default function Home() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [gameData, setGameData] = useState<any>(null)
   const [streak, setStreak] = useState(0)
+  const [showHowToPlay, setShowHowToPlay] = useState(false)
 
   useEffect(() => {
     const savedLang = toLanguage(localStorage.getItem('brain_lang'))
@@ -219,6 +221,13 @@ export default function Home() {
                 <span className={`text-xs font-medium px-3 py-1 rounded-full flex-shrink-0 ${diffColor[gameData.difficulty]}`}>
                   {diffLabel[gameData.difficulty]}
                 </span>
+                <button
+                  onClick={() => setShowHowToPlay(true)}
+                  className="w-7 h-7 rounded-full border border-stone-200 flex items-center justify-center text-stone-400 hover:bg-stone-50 hover:text-stone-600 transition-colors flex-shrink-0 text-sm font-semibold"
+                  aria-label="How to play"
+                >
+                  ?
+                </button>
               </div>
 
               <div className="p-6">
@@ -240,6 +249,14 @@ export default function Home() {
           )}
         </div>
       </div>
+
+      {showHowToPlay && gameType && (
+        <HowToPlay
+          gameTypeId={gameType.id}
+          lang={lang}
+          onClose={() => setShowHowToPlay(false)}
+        />
+      )}
     </main>
   )
 }

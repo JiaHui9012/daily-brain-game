@@ -83,9 +83,9 @@ export default function TurtleSoup({ data, lang }: { data: TurtleSoupData; lang:
       const result = await res.json()
       setQa(prev => [...prev, { question: trimmed, reply: result.reply }])
       setQuestion('')
-	  if(result.isCorrect) {
-		setAnswerOpen(true)
-	  }
+      if (result.isCorrect) {
+        setAnswerOpen(true)
+      }
     } catch (err: unknown) {
       setAskError(err instanceof Error ? err.message : text.askError)
     } finally {
@@ -116,26 +116,24 @@ export default function TurtleSoup({ data, lang }: { data: TurtleSoupData; lang:
         {qa.length >= MAX_QUESTIONS && (
           <p className="text-sm text-amber-600 mb-2">{text.limitReached}</p>
         )}
-          <div className="flex gap-2">
-            <input
-              id="turtle-question"
-              value={question}
-              onChange={e => setQuestion(e.target.value)}
-              onKeyDown={e => {
-                if (e.key === 'Enter') askQuestion()
-              }}
-              placeholder={text.askPlaceholder}
-              className="min-w-0 flex-1 rounded-lg border border-stone-200 px-3 py-2 text-sm text-stone-700 outline-none focus:border-stone-400"
-            />
-            <button
-              onClick={askQuestion}
-              disabled={asking || !question.trim() || answerOpen || qa.length >= MAX_QUESTIONS}
-              className="rounded-lg bg-stone-800 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-stone-700 disabled:cursor-not-allowed disabled:bg-stone-300"
-            >
-              {asking ? text.sending : text.send}
-            </button>
-          </div>
-        
+        <div className="flex gap-2">
+          <input
+            id="turtle-question"
+            value={question}
+            onChange={e => setQuestion(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') askQuestion() }}
+            placeholder={text.askPlaceholder}
+            className="min-w-0 flex-1 rounded-lg border border-stone-200 px-3 py-2 text-sm text-stone-700 outline-none focus:border-stone-400"
+          />
+          <button
+            onClick={askQuestion}
+            disabled={asking || !question.trim() || answerOpen || qa.length >= MAX_QUESTIONS}
+            className="rounded-lg bg-stone-800 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-stone-700 disabled:cursor-not-allowed disabled:bg-stone-300"
+          >
+            {asking ? text.sending : text.send}
+          </button>
+        </div>
+
         {askError && <p className="mt-2 text-xs text-red-500">{askError}</p>}
         {qa.length > 0 && (
           <div className="mt-3 flex flex-col gap-2">
@@ -178,7 +176,7 @@ export default function TurtleSoup({ data, lang }: { data: TurtleSoupData; lang:
             <span>👁</span>
             <span>{text.reveal}</span>
           </button>
-		)}
+        )}
         {answerOpen && (
           <div className="mt-2 bg-stone-50 border border-stone-200 rounded-lg p-4">
             <p className="text-sm leading-relaxed text-stone-700 mb-2">

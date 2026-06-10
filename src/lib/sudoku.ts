@@ -1,14 +1,13 @@
 import { getSudoku } from 'sudoku-gen'
-
-export type SudokuDifficulty = 'easy' | 'medium' | 'hard'
+import { Difficulty } from './gameTypes'
 
 export interface GeneratedSudoku {
   puzzle: number[][]
   solution: number[][]
-  difficulty: SudokuDifficulty
+  difficulty: Difficulty
 }
 
-export function generateSudoku(difficulty: SudokuDifficulty = 'medium'): GeneratedSudoku {
+export function generateSudoku(difficulty: Difficulty = 'medium'): GeneratedSudoku {
   const sudoku = getSudoku(difficulty)
 
   return {

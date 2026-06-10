@@ -11,11 +11,13 @@ export type GameTypeId =
   | 'sudoku'
   | 'sequence'
 
+export type Difficulty = 'easy' | 'medium' | 'hard'
+
 export interface GameType {
   id: GameTypeId
   label: string
   icon: string
-  difficulty: 'easy' | 'medium' | 'hard'
+  difficulty: Difficulty
 }
 
 const GAME_TYPE_META: Omit<GameType, 'label'>[] = [

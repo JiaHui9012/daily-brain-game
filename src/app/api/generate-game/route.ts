@@ -4,10 +4,10 @@
 import { GoogleGenerativeAI } from '@google/generative-ai' // Gemini
 // import Anthropic from '@anthropic-ai/sdk' // Claude
 import { NextRequest, NextResponse } from 'next/server'
-import { getGamePrompt, getGameTypeForDate, GameTypeId, GAME_SAMPLE } from '@/lib/gameTypes'
+import { getGamePrompt, getGameTypeForDate, GameTypeId, GAME_SAMPLE, Difficulty } from '@/lib/gameTypes'
 import { toLanguage } from '@/lib/i18n'
 import { validateGameData } from '@/lib/validateGame'
-import { generateSudoku, SudokuDifficulty  } from '@/lib/sudoku'
+import { generateSudoku  } from '@/lib/sudoku'
 
 // Gemini
 const genAI = new GoogleGenerativeAI(
@@ -31,7 +31,7 @@ export async function GET(req: NextRequest) {
 
   try {
     if (gameType.id === 'sudoku') {
-      const difficulties: SudokuDifficulty[] = ['easy', 'medium', 'hard']
+      const difficulties: Difficulty[] = ['easy', 'medium', 'hard']
       const randomDifficulty = difficulties[Math.floor(Math.random() * difficulties.length)]
       const sudoku = generateSudoku(randomDifficulty)
       const gameData = validateGameData(gameType.id, {
@@ -56,15 +56,15 @@ export async function GET(req: NextRequest) {
       })
     }
 
-	// Gemini
+    // Gemini
     const model = genAI.getGenerativeModel({
       model: GEMINI_MODEL,
     })
     const result = await model.generateContent(prompt)
     const raw = result.response.text()
-	
-	// Claude
-	// const message = await client.messages.create({
+
+    // Claude
+    // // const message = await client.messages.create({
     //   model: 'claude-sonnet-4-20250514',
     //   max_tokens: 1024,
     //   messages: [{ role: 'user', content: prompt }],
@@ -76,12 +76,12 @@ export async function GET(req: NextRequest) {
 
     // Strip markdown fences if present
     const json = raw.replace(/```json|```/g, '').trim()
-	const gameData = validateGameData(gameType.id, JSON.parse(json))
-	
-	// use GAME_SAMPLE if dont want to waste rate limits
-	// const gameDatas = GAME_SAMPLE[gameType.id as GameTypeId]
-	// const randomIndex = Math.floor(Math.random() * gameDatas.length)
-	// const gameData = validateGameData(gameType.id, gameDatas[randomIndex])
+    const gameData = validateGameData(gameType.id, JSON.parse(json))
+
+    // use GAME_SAMPLE if dont want to waste rate limits
+    // const gameDatas = GAME_SAMPLE[gameType.id as GameTypeId]
+    // const randomIndex = Math.floor(Math.random() * gameDatas.length)
+    // const gameData = validateGameData(gameType.id, gameDatas[randomIndex])
 
     return NextResponse.json({
       gameType,

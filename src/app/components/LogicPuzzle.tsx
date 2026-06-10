@@ -71,7 +71,7 @@ export default function LogicPuzzle({ data, lang }: { data: LogicData; lang: Lan
 
     if (exactMatch) {
       setCheckResult({ status: 'correct', feedback: text.correct })
-	  setAnswerOpen(true)
+      setAnswerOpen(true)
       return
     }
 
@@ -102,8 +102,8 @@ export default function LogicPuzzle({ data, lang }: { data: LogicData; lang: Lan
         status,
         feedback: result.feedback || (status === 'correct' ? text.correct : status === 'partial' ? text.partial : text.wrong),
       })
-	  
-	  if (status === 'correct') setAnswerOpen(true)
+
+      if (status === 'correct') setAnswerOpen(true)
     } catch {
       setCheckResult({ status: 'wrong', feedback: text.wrong })
     } finally {
@@ -132,9 +132,7 @@ export default function LogicPuzzle({ data, lang }: { data: LogicData; lang: Lan
               setUserAnswer(e.target.value)
               setCheckResult(null)
             }}
-            onKeyDown={e => {
-              if (e.key === 'Enter') checkAnswer()
-            }}
+            onKeyDown={e => { if (e.key === 'Enter') checkAnswer() }}
             placeholder={text.placeholder}
             className="min-w-0 flex-1 rounded-lg border border-stone-200 px-3 py-2 text-sm text-stone-700 outline-none focus:border-stone-400"
           />
