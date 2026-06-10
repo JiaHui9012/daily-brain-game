@@ -3,6 +3,14 @@
 
 import { useState } from 'react'
 import { Language } from '@/lib/i18n'
+import { GameProgress } from '@/lib/progress'
+
+interface SudokuProps {
+  data: SudokuData
+  lang: Language
+  progress: GameProgress | null
+  onProgress: (p: GameProgress) => void
+}
 
 interface SudokuData {
   title: string
@@ -54,15 +62,25 @@ function isPeer(aRow: number, aCol: number, bRow: number, bCol: number) {
   )
 }
 
-export default function Sudoku({ data, lang }: { data: SudokuData; lang: Language }) {
+export default function Sudoku({ data, lang, progress, onProgress }: SudokuProps) {
   const text = TEXT[lang]
-  const [userGrid, setUserGrid] = useState<CellValue[][]>(
-    data.puzzle.map(row => row.map(c => c === 0 ? '' : c))
+  const [userGrid, setUserGrid] = useState<CellValue[][]>(() =>
+    progress?.state?.userGrid ?? data.puzzle.map(row => row.map(c => c === 0 ? '' : c))
   )
-  const [notes, setNotes] = useState<number[][][]>(emptyNotes)
+  const [notes, setNotes] = useState<number[][][]>(() =>
+    progress?.state?.notes ?? emptyNotes()
+  )
   const [selected, setSelected] = useState<[number, number] | null>(null)
   const [notesMode, setNotesMode] = useState(false)
-  const [result, setResult] = useState<CheckResult>(null)
+  const [result, setResult] = useState<CheckResult>(() =>
+    progress?.solved ? 'correct' : null
+  )
+
+  function updateGrid(newGrid: CellValue[][], newNotes: number[][][], solved = false) {
+    setUserGrid(newGrid)
+    setNotes(newNotes)
+    onProgress({ solved, state: { userGrid: newGrid, notes: newNotes } })
+  }
 
   function placeNumber(value: number) {
     if (!selected) return
@@ -70,25 +88,27 @@ export default function Sudoku({ data, lang }: { data: SudokuData; lang: Languag
     if (data.puzzle[row][col] !== 0) return
 
     if (notesMode) {
-      setNotes(prev => prev.map((noteRow, r) =>
+      const newNotes = notes.map((noteRow, r) =>
         noteRow.map((cellNotes, c) => {
           if (r !== row || c !== col) return cellNotes
           return cellNotes.includes(value)
             ? cellNotes.filter(n => n !== value)
             : [...cellNotes, value].sort()
         })
-      ))
+      )
+      updateGrid(userGrid, newNotes)
       return
     }
 
-    setUserGrid(prev => prev.map((gridRow, r) =>
+    const newGrid = userGrid.map((gridRow, r) =>
       gridRow.map((cell, c) => r === row && c === col ? value : cell)
-    ))
-    setNotes(prev => prev.map((noteRow, r) =>
+    )
+    const newNotes = notes.map((noteRow, r) =>
       noteRow.map((cellNotes, c) =>
         isPeer(row, col, r, c) ? cellNotes.filter(n => n !== value) : cellNotes
       )
-    ))
+    )
+    updateGrid(newGrid, newNotes)
     setResult(null)
   }
 
@@ -97,12 +117,13 @@ export default function Sudoku({ data, lang }: { data: SudokuData; lang: Languag
     const [row, col] = selected
     if (data.puzzle[row][col] !== 0) return
 
-    setUserGrid(prev => prev.map((gridRow, r) =>
+    const newGrid = userGrid.map((gridRow, r) =>
       gridRow.map((cell, c) => r === row && c === col ? '' : cell)
-    ))
-    setNotes(prev => prev.map((noteRow, r) =>
+    )
+    const newNotes = notes.map((noteRow, r) =>
       noteRow.map((cellNotes, c) => r === row && c === col ? [] : cellNotes)
-    ))
+    )
+    updateGrid(newGrid, newNotes)
     setResult(null)
   }
 
@@ -122,13 +143,17 @@ export default function Sudoku({ data, lang }: { data: SudokuData; lang: Languag
     }
 
     if (!complete) setResult('incomplete')
-    else if (correct) setResult('correct')
+    else if (correct) { 
+      setResult('correct')
+      onProgress({ solved: true, state: { userGrid, notes } })
+    }
     else setResult('wrong')
   }
 
   function reset() {
-    setUserGrid(data.puzzle.map(row => row.map(c => c === 0 ? '' : c)))
-    setNotes(emptyNotes())
+    const newGrid = data.puzzle.map(row => row.map(c => c === 0 ? '' : c))
+    const newNotes = emptyNotes()
+    updateGrid(newGrid, newNotes, false)
     setSelected(null)
     setResult(null)
   }

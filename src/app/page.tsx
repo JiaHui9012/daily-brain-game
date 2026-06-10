@@ -12,6 +12,7 @@ import Sudoku from './components/Sudoku'
 import LogicPuzzle from './components/LogicPuzzle'
 import MemoryMatch from './components/MemoryMatch'
 import HowToPlay from './components/HowToPlay'
+import { GameProgress, saveProgress, loadProgress } from '@/lib/progress'
 
 const UI_TEXT = {
   en: {
@@ -79,7 +80,7 @@ function updateStreak() {
 }
 
 export default function Home() {
-  const [lang, setLang] = useState<Language>('en')
+  const [lang, setLang] = useState<Language | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [gameType, setGameType] = useState<GameType | null>(null)
@@ -87,6 +88,7 @@ export default function Home() {
   const [gameData, setGameData] = useState<any>(null)
   const [streak, setStreak] = useState(0)
   const [showHowToPlay, setShowHowToPlay] = useState(false)
+  const [progress, setProgress] = useState<GameProgress | null>(null)
 
   useEffect(() => {
     const savedLang = toLanguage(localStorage.getItem('brain_lang'))
@@ -103,15 +105,16 @@ export default function Home() {
       setGameType(null)
       setGameData(null)
 
-      const cacheKey = getTodayKey(lang)
+      const cacheKey = getTodayKey(lang ?? 'en')
       const cached = localStorage.getItem(cacheKey)
       if (cached) {
         try {
           const { gameTypeId, gameData } = JSON.parse(cached)
           if (cancelled) return
-          const gameType = getGameTypes(lang).find((u) => u.id === gameTypeId) ?? null;
+          const gameType = getGameTypes(lang ?? 'en').find((u) => u.id === gameTypeId) ?? null;
           setGameType(gameType)
-          setGameData(gameData[lang])
+          setGameData(gameData[lang ?? 'en'])
+          setProgress(loadProgress(gameTypeId))
           updateStreak()
           setStreak(getStreak())
           setLoading(false)
@@ -125,7 +128,8 @@ export default function Home() {
           const data = await res.json()
           if (cancelled) return
           setGameType(data.gameType)
-          setGameData(data.gameData[lang])
+          setGameData(data.gameData[lang ?? 'en'])
+          setProgress(loadProgress(data.gameType.id))
           localStorage.setItem(cacheKey, JSON.stringify({ gameTypeId: data.gameType.id, gameData: data.gameData }))
           updateStreak()
           setStreak(getStreak())
@@ -141,13 +145,17 @@ export default function Home() {
 	return () => { cancelled = true }
   }, [lang])
   
+  function handleProgress(p: GameProgress) {
+    setProgress(p)
+    saveProgress(gameType!.id, p)
+  }
   
   function switchLang(newLang: Language) {
     setLang(newLang)
     localStorage.setItem('brain_lang', newLang)
   }
 
-  const text = UI_TEXT[lang]
+  const text = UI_TEXT[lang ?? 'en']
   const diffLabel = text.difficulty
   const diffColor = {
     easy: 'bg-green-100 text-green-800',
@@ -160,7 +168,7 @@ export default function Home() {
       <div className="max-w-2xl mx-auto">
         <div className="text-center mb-8">
           <div className="inline-block text-xs font-medium tracking-widest text-stone-500 bg-white border border-stone-200 rounded-full px-4 py-1 mb-4">
-            {formatDate(lang)}
+            {formatDate(lang ?? 'en')}
           </div>
           <h1 className="font-serif text-3xl font-bold text-stone-800 mb-1">{text.appTitle}</h1>
           <p className="text-sm text-stone-500 font-light mb-4">{text.subtitle}</p>
@@ -228,13 +236,13 @@ export default function Home() {
               </div>
 
               <div className="p-6">
-                {gameType.id === 'turtle_soup'  && <TurtleSoup data={gameData} lang={lang} />}
-                {gameType.id === 'riddle'        && <Riddle data={gameData} lang={lang} />}
-                {gameType.id === 'word_analogy'  && <WordAnalogy data={gameData} lang={lang} />}
-                {gameType.id === 'sequence'      && <Sequence data={gameData} lang={lang} />}
-                {gameType.id === 'sudoku'        && <Sudoku data={gameData} lang={lang} />}
-                {gameType.id === 'logic_puzzle'  && <LogicPuzzle data={gameData} lang={lang} />}
-                {gameType.id === 'memory_match'  && <MemoryMatch data={gameData} lang={lang} />}
+                {gameType.id === 'turtle_soup'  && <TurtleSoup data={gameData} lang={lang ?? 'en'} />}
+                {gameType.id === 'riddle'        && <Riddle data={gameData} lang={lang ?? 'en'} />}
+                {gameType.id === 'word_analogy'  && <WordAnalogy data={gameData} lang={lang ?? 'en'} />}
+                {gameType.id === 'sequence'      && <Sequence data={gameData} lang={lang ?? 'en'} />}
+                {gameType.id === 'sudoku'        && <Sudoku data={gameData} lang={lang ?? 'en'} progress={progress} onProgress={handleProgress} />}
+                {gameType.id === 'logic_puzzle'  && <LogicPuzzle data={gameData} lang={lang ?? 'en'} />}
+                {gameType.id === 'memory_match'  && <MemoryMatch data={gameData} lang={lang ?? 'en'} />}
               </div>
 
               <div className="flex items-center justify-center gap-2 px-6 py-3 bg-stone-50 border-t border-stone-100 text-sm text-stone-400">
@@ -250,7 +258,7 @@ export default function Home() {
       {showHowToPlay && gameType && (
         <HowToPlay
           gameTypeId={gameType.id}
-          lang={lang}
+          lang={lang ?? 'en'}
           onClose={() => setShowHowToPlay(false)}
         />
       )}
