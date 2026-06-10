@@ -2,7 +2,7 @@
 // src/app/page.tsx
 
 import { useEffect, useState } from 'react'
-import { GameType, getGameTypes } from '@/lib/gameTypes'
+import { GameType, getGameTypes, Difficulty } from '@/lib/gameTypes'
 import { LANGUAGES, Language, toLanguage } from '@/lib/i18n'
 import TurtleSoup from './components/TurtleSoup'
 import Riddle from './components/Riddle'
@@ -80,7 +80,6 @@ function updateStreak() {
 
 export default function Home() {
   const [lang, setLang] = useState<Language>('en')
-  const [currentLang, setCurrentLang] = useState<Language | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [gameType, setGameType] = useState<GameType | null>(null)
@@ -92,11 +91,10 @@ export default function Home() {
   useEffect(() => {
     const savedLang = toLanguage(localStorage.getItem('brain_lang'))
     setLang(savedLang)
-    setCurrentLang(savedLang)
   }, [])
 
   useEffect(() => {
-    if (currentLang === null) return
+    if (lang === null) return
     let cancelled = false
 
     async function load() {
@@ -105,15 +103,15 @@ export default function Home() {
       setGameType(null)
       setGameData(null)
 
-      const cacheKey = getTodayKey(currentLang)
+      const cacheKey = getTodayKey(lang)
       const cached = localStorage.getItem(cacheKey)
       if (cached) {
         try {
           const { gameTypeId, gameData } = JSON.parse(cached)
           if (cancelled) return
-		  const gameType = getGameTypes(currentLang).find((u) => u.id === gameTypeId);
+          const gameType = getGameTypes(lang).find((u) => u.id === gameTypeId) ?? null;
           setGameType(gameType)
-          setGameData(gameData[currentLang])
+          setGameData(gameData[lang])
           updateStreak()
           setStreak(getStreak())
           setLoading(false)
@@ -121,33 +119,32 @@ export default function Home() {
           localStorage.removeItem(cacheKey)
         }
       } else {
-		  try {
-			const res = await fetch(`/api/generate-game?lang=${currentLang}`)
-			if (!res.ok) throw new Error(`Server error ${res.status}`)
-			const data = await res.json()
-			if (cancelled) return
-			setGameType(data.gameType)
-			setGameData(data.gameData[currentLang])
-			localStorage.setItem(cacheKey, JSON.stringify({ gameTypeId: data.gameType.id, gameData: data.gameData }))
-			updateStreak()
-			setStreak(getStreak())
-		  } catch (e: unknown) {
-			if (!cancelled) setError(e instanceof Error ? e.message : 'Unknown error')
-		  } finally {
-			if (!cancelled) setLoading(false)
-		  }
+        try {
+          const res = await fetch(`/api/generate-game?lang=${lang}`)
+          if (!res.ok) throw new Error(`Server error ${res.status}`)
+          const data = await res.json()
+          if (cancelled) return
+          setGameType(data.gameType)
+          setGameData(data.gameData[lang])
+          localStorage.setItem(cacheKey, JSON.stringify({ gameTypeId: data.gameType.id, gameData: data.gameData }))
+          updateStreak()
+          setStreak(getStreak())
+        } catch (e: unknown) {
+          if (!cancelled) setError(e instanceof Error ? e.message : 'Unknown error')
+        } finally {
+          if (!cancelled) setLoading(false)
+        }
       }
     }
 
     load()
 	return () => { cancelled = true }
-  }, [currentLang])
+  }, [lang])
   
   
   function switchLang(newLang: Language) {
     setLang(newLang)
     localStorage.setItem('brain_lang', newLang)
-    setCurrentLang(newLang)
   }
 
   const text = UI_TEXT[lang]
@@ -218,8 +215,8 @@ export default function Home() {
                     {gameData.title}
                   </div>
                 </div>
-                <span className={`text-xs font-medium px-3 py-1 rounded-full flex-shrink-0 ${diffColor[gameData.difficulty]}`}>
-                  {diffLabel[gameData.difficulty]}
+                <span className={`text-xs font-medium px-3 py-1 rounded-full flex-shrink-0 ${diffColor[gameData.difficulty as Difficulty]}`}>
+                  {diffLabel[gameData.difficulty as Difficulty]}
                 </span>
                 <button
                   onClick={() => setShowHowToPlay(true)}

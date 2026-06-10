@@ -57,7 +57,11 @@ export default function MemoryMatch({ data, lang }: { data: MemoryData; lang: La
       setMoves(m => m + 1)
       const [a, b] = newFlipped
       if (cards[a].id === cards[b].id) {
-        setMatched(prev => new Set([...prev, cards[a].id]))
+        setMatched(prev => {
+          const next = new Set(prev)
+          next.add(cards[a].id)
+          return next
+        })
         setFlipped([])
         lockRef.current = false
         setLocked(false)
