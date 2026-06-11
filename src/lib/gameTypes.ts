@@ -72,7 +72,8 @@ export function getGamePrompt(type: GameTypeId, lang: Language): string {
   const languageName = lang === 'zh' ? 'Chinese' : 'English'
 
   const prompts: Record<GameTypeId, string> = {
-    turtle_soup: `Generate a "turtle soup" lateral thinking puzzle in English and Chinese versions. The player must guess the full story by asking yes/no questions. Judge the difficulty(easy/medium/hard) based on the results you generate. 
+    turtle_soup: `Generate a "turtle soup" lateral thinking puzzle in English and Chinese versions. The player must guess the full story by asking yes/no questions. 
+    Do not generate story related to turtle soup! Judge the difficulty(easy/medium/hard) based on the results you generate. 
 Return ONLY valid JSON (no markdown, no backticks):
 {
 	"en": {
