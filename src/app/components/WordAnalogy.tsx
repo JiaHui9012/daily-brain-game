@@ -3,9 +3,16 @@
 
 import { useState } from 'react'
 import { Language } from '@/lib/i18n'
+import { GameProgress } from '@/lib/progress';
 
 interface Question { stem: string; options: string[]; answer: number; explanation: string }
 interface WordAnalogyData { title: string; intro: string; questions: Question[] }
+interface WordAnalogyProps {
+  data: WordAnalogyData
+  lang: Language
+  progress: GameProgress | null
+  onProgress: (p: GameProgress) => void
+}
 
 const TEXT = {
   en: {
@@ -28,21 +35,45 @@ const TEXT = {
   },
 }
 
-export default function WordAnalogy({ data, lang }: { data: WordAnalogyData; lang: Language }) {
+export default function WordAnalogy({ data, lang, progress, onProgress }: WordAnalogyProps) {
   const text = TEXT[lang]
-  const [current, setCurrent] = useState(0)
-  const [selected, setSelected] = useState<(number | null)[]>(data.questions.map(() => null))
-  const [score, setScore] = useState(0)
+  const [current, setCurrent] = useState<number>(
+    () => progress?.state?.current ?? 0
+  )
+  const [selected, setSelected] = useState<(number | null)[]>(
+    () => progress?.state?.selected ?? data.questions.map(() => null)
+  )
+  const [score, setScore] = useState<number>(
+    () => progress?.state?.score ?? 0
+  )
 
   const q = data.questions[current]
   const sel = selected[current]
   const isDone = current >= data.questions.length
 
+  function saveState(updates: { current?: number; selected?: (number | null)[]; score?: number }) {
+    const newState = {
+      current: updates.current ?? current,
+      selected: updates.selected ?? selected,
+      score: updates.score ?? score,
+    }
+    const solved = (updates.selected ?? selected).every((v): v is number => v !== null)
+    onProgress({ solved, state: newState })
+  }
+
   function select(idx: number) {
     if (sel !== null) return
     const newSelected = selected.map((v, i) => i === current ? idx : v)
     setSelected(newSelected)
-    if (idx === q.answer) setScore(s => s + 1)
+    const newScore = idx === q.answer ? score + 1 : score
+    if (idx === q.answer) setScore(newScore)
+    saveState({ selected: newSelected, score: newScore })
+  }
+
+  function handleNext() {
+    const next = current + 1
+    setCurrent(next)
+    saveState({ current: next })
   }
 
   if (isDone) {
@@ -102,7 +133,7 @@ export default function WordAnalogy({ data, lang }: { data: WordAnalogyData; lan
 
       {sel !== null && (
         <button
-          onClick={() => setCurrent(c => c + 1)}
+          onClick={handleNext}
           className="w-full bg-stone-800 text-white rounded-lg py-2.5 text-sm font-medium hover:bg-stone-700 transition-colors"
         >
           {current < data.questions.length - 1 ? text.next : text.results}

@@ -3,9 +3,16 @@
 
 import { useState } from 'react'
 import { Language } from '@/lib/i18n'
+import { GameProgress } from '@/lib/progress';
 
 interface SeqItem { sequence: (number | string)[]; answer: number; rule: string }
 interface SequenceData { title: string; intro: string; sequences: SeqItem[] }
+interface SequenceProps {
+  data: SequenceData
+  lang: Language
+  progress: GameProgress | null
+  onProgress: (p: GameProgress) => void
+}
 
 const TEXT = {
   en: {
@@ -26,13 +33,34 @@ const TEXT = {
   },
 }
 
-export default function Sequence({ data, lang }: { data: SequenceData; lang: Language }) {
+export default function Sequence({ data, lang, progress, onProgress }: SequenceProps) {
   const text = TEXT[lang]
-  const [answers, setAnswers] = useState<string[]>(data.sequences.map(() => ''))
-  const [checked, setChecked] = useState<boolean[]>(data.sequences.map(() => false))
+  const [answers, setAnswers] = useState<string[]>(() =>
+    progress?.state?.answers ?? data.sequences.map(() => '')
+  )
+  const [checked, setChecked] = useState<boolean[]>(() =>
+    progress?.state?.checked ?? data.sequences.map(() => false)
+  )
+
+  function saveState(updates: { answers?: string[]; checked?: boolean[] }) {
+    const newState = {
+      answers: updates.answers ?? answers,
+      checked: updates.checked ?? checked,
+    }
+    const solved = (updates.checked ?? checked).every(Boolean)
+    onProgress({ solved, state: newState })
+  }
 
   function check(i: number) {
-    setChecked(prev => prev.map((v, j) => j === i ? true : v))
+    const newChecked = checked.map((v, j) => j === i ? true : v)
+    setChecked(newChecked)
+    saveState({ checked: newChecked })
+  }
+
+  function setAnswer(i: number, value: string) {
+    const newAnswers = answers.map((v, j) => j === i ? value : v)
+    setAnswers(newAnswers)
+    saveState({ answers: newAnswers })
   }
 
   return (
@@ -69,7 +97,7 @@ export default function Sequence({ data, lang }: { data: SequenceData; lang: Lan
                   type="number"
                   placeholder={text.placeholder}
                   value={answers[i]}
-                  onChange={e => setAnswers(prev => prev.map((v, j) => j === i ? e.target.value : v))}
+                  onChange={e => setAnswer(i, e.target.value)}
                   className="w-32 border border-stone-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-stone-400"
                 />
                 <button

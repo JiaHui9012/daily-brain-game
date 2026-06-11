@@ -76,7 +76,7 @@ export default function Sudoku({ data, lang, progress, onProgress }: SudokuProps
     progress?.solved ? 'correct' : null
   )
 
-  function updateGrid(newGrid: CellValue[][], newNotes: number[][][], solved = false) {
+  function saveState(newGrid: CellValue[][], newNotes: number[][][], solved = false) {
     setUserGrid(newGrid)
     setNotes(newNotes)
     onProgress({ solved, state: { userGrid: newGrid, notes: newNotes } })
@@ -96,7 +96,7 @@ export default function Sudoku({ data, lang, progress, onProgress }: SudokuProps
             : [...cellNotes, value].sort()
         })
       )
-      updateGrid(userGrid, newNotes)
+      saveState(userGrid, newNotes)
       return
     }
 
@@ -108,7 +108,7 @@ export default function Sudoku({ data, lang, progress, onProgress }: SudokuProps
         isPeer(row, col, r, c) ? cellNotes.filter(n => n !== value) : cellNotes
       )
     )
-    updateGrid(newGrid, newNotes)
+    saveState(newGrid, newNotes)
     setResult(null)
   }
 
@@ -123,7 +123,7 @@ export default function Sudoku({ data, lang, progress, onProgress }: SudokuProps
     const newNotes = notes.map((noteRow, r) =>
       noteRow.map((cellNotes, c) => r === row && c === col ? [] : cellNotes)
     )
-    updateGrid(newGrid, newNotes)
+    saveState(newGrid, newNotes)
     setResult(null)
   }
 
@@ -153,7 +153,7 @@ export default function Sudoku({ data, lang, progress, onProgress }: SudokuProps
   function reset() {
     const newGrid = data.puzzle.map(row => row.map(c => c === 0 ? '' : c))
     const newNotes = emptyNotes()
-    updateGrid(newGrid, newNotes, false)
+    saveState(newGrid, newNotes, false)
     setSelected(null)
     setResult(null)
   }

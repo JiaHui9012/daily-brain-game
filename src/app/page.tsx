@@ -237,9 +237,9 @@ export default function Home() {
 
               <div className="p-6">
                 {gameType.id === 'turtle_soup'  && <TurtleSoup data={gameData} lang={lang ?? 'en'} />}
-                {gameType.id === 'riddle'        && <Riddle data={gameData} lang={lang ?? 'en'} />}
-                {gameType.id === 'word_analogy'  && <WordAnalogy data={gameData} lang={lang ?? 'en'} />}
-                {gameType.id === 'sequence'      && <Sequence data={gameData} lang={lang ?? 'en'} />}
+                {gameType.id === 'riddle'        && <Riddle data={gameData} lang={lang ?? 'en'} progress={progress} onProgress={handleProgress} />}
+                {gameType.id === 'word_analogy'  && <WordAnalogy data={gameData} lang={lang ?? 'en'} progress={progress} onProgress={handleProgress} />}
+                {gameType.id === 'sequence'      && <Sequence data={gameData} lang={lang ?? 'en'} progress={progress} onProgress={handleProgress} />}
                 {gameType.id === 'sudoku'        && <Sudoku data={gameData} lang={lang ?? 'en'} progress={progress} onProgress={handleProgress} />}
                 {gameType.id === 'logic_puzzle'  && <LogicPuzzle data={gameData} lang={lang ?? 'en'} />}
                 {gameType.id === 'memory_match'  && <MemoryMatch data={gameData} lang={lang ?? 'en'} />}

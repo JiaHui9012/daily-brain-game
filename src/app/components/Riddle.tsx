@@ -3,9 +3,16 @@
 
 import { useState } from 'react'
 import { Language } from '@/lib/i18n'
+import { GameProgress } from '@/lib/progress';
 
 interface RiddleItem { question: string; answer: string; explanation: string }
 interface RiddleData { title: string; riddles: RiddleItem[] }
+interface RiddleProps {
+  data: RiddleData
+  lang: Language
+  progress: GameProgress | null
+  onProgress: (p: GameProgress) => void
+}
 
 type CheckStatus = 'correct' | 'partial' | 'wrong'
 
@@ -48,11 +55,17 @@ function normalizeAnswer(value: string) {
   return value.toLowerCase().replace(/[\s，。！？、,.!?]/g, '')
 }
 
-export default function Riddle({ data, lang }: { data: RiddleData; lang: Language }) {
+export default function Riddle({ data, lang, progress, onProgress }: RiddleProps) {
   const text = TEXT[lang]
-  const [current, setCurrent] = useState(0)
-  const [revealed, setRevealed] = useState<boolean[]>(data.riddles.map(() => false))
-  const [answers, setAnswers] = useState<string[]>(data.riddles.map(() => ''))
+  const [current, setCurrent] = useState<number>(() =>
+    progress?.state?.current ?? 0
+  )
+  const [revealed, setRevealed] = useState<boolean[]>(() =>
+    progress?.state?.revealed ?? data.riddles.map(() => false)
+  )
+  const [answers, setAnswers] = useState<string[]>(() =>
+    progress?.state?.answers ?? data.riddles.map(() => '')
+  )
   const [checkResults, setCheckResults] = useState<({ status: CheckStatus; feedback: string } | null)[]>(
     data.riddles.map(() => null)
   )
@@ -66,8 +79,26 @@ export default function Riddle({ data, lang }: { data: RiddleData; lang: Languag
   const exactMatch = !allDone && normalizeAnswer(userAnswer) === normalizeAnswer(riddle.answer)
   const isLast = current === data.riddles.length - 1
 
+  function saveState(updates: { current?: number; revealed?: boolean[]; answers?: string[] }) {
+    const newState = {
+      current: updates.current ?? current,
+      revealed: updates.revealed ?? revealed,
+      answers: updates.answers ?? answers,
+    }
+    const solved = (updates.revealed ?? revealed).every(Boolean)
+    onProgress({ solved, state: newState })
+  }
+
   function reveal() {
-    setRevealed(prev => prev.map((v, i) => i === current ? true : v))
+    const newRevealed = revealed.map((v, i) => i === current ? true : v)
+    setRevealed(newRevealed)
+    saveState({ revealed: newRevealed })
+  }
+
+  function handleNext() {
+    const next = current + 1
+    setCurrent(next)
+    saveState({ current: next })
   }
 
   async function checkAnswer() {
@@ -193,17 +224,17 @@ export default function Riddle({ data, lang }: { data: RiddleData; lang: Languag
           </button>
         )}
         {isRevealed && !isLast && (
-          <button onClick={() => setCurrent(c => c + 1)} className="flex-1 bg-stone-800 text-white rounded-lg py-2.5 text-sm font-medium hover:bg-stone-700 transition-colors">
+          <button onClick={handleNext} className="flex-1 bg-stone-800 text-white rounded-lg py-2.5 text-sm font-medium hover:bg-stone-700 transition-colors">
             {text.next}
           </button>
         )}
         {isRevealed && isLast && (
-          <button onClick={() => setCurrent(data.riddles.length)} className="flex-1 bg-stone-800 text-white rounded-lg py-2.5 text-sm font-medium hover:bg-stone-700 transition-colors">
+          <button onClick={handleNext} className="flex-1 bg-stone-800 text-white rounded-lg py-2.5 text-sm font-medium hover:bg-stone-700 transition-colors">
             {text.result}
           </button>
         )}
         {!isRevealed && !isLast && (
-          <button onClick={() => setCurrent(c => c + 1)} className="border border-stone-200 text-stone-500 rounded-lg py-2.5 px-4 text-sm font-medium hover:bg-stone-50 transition-colors">
+          <button onClick={handleNext} className="border border-stone-200 text-stone-500 rounded-lg py-2.5 px-4 text-sm font-medium hover:bg-stone-50 transition-colors">
             {text.skip}
           </button>
         )}
