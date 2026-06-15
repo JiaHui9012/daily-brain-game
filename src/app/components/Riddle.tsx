@@ -51,10 +51,6 @@ const TEXT = {
   },
 }
 
-function normalizeAnswer(value: string) {
-  return value.toLowerCase().replace(/[\s，。！？、,.!?]/g, '')
-}
-
 export default function Riddle({ data, lang, progress, onProgress }: RiddleProps) {
   const text = TEXT[lang]
   const [current, setCurrent] = useState<number>(() =>
@@ -70,29 +66,52 @@ export default function Riddle({ data, lang, progress, onProgress }: RiddleProps
     data.riddles.map(() => null)
   )
   const [checking, setChecking] = useState(false)
+  type RevealedAnswer = { answer: string; explanation: string } | null
+  const [revealedAnswers, setRevealedAnswers] = useState<RevealedAnswer[]>(
+    () => progress?.state?.realAnswers ?? data.riddles.map(() => null)
+  )
 
   const allDone = current >= data.riddles.length
   const riddle = data.riddles[current]
   const isRevealed = revealed[current]
   const userAnswer = answers[current] || ''
   const checkResult = checkResults[current]
-  const exactMatch = !allDone && normalizeAnswer(userAnswer) === normalizeAnswer(riddle.answer)
   const isLast = current === data.riddles.length - 1
 
-  function saveState(updates: { current?: number; revealed?: boolean[]; answers?: string[] }) {
+  function saveState(updates: { current?: number; revealed?: boolean[]; answers?: string[]; realAnswers?: RevealedAnswer[] }) {
     const newState = {
       current: updates.current ?? current,
       revealed: updates.revealed ?? revealed,
       answers: updates.answers ?? answers,
+      realAnswers: updates.realAnswers ?? revealedAnswers,
     }
     const solved = (updates.revealed ?? revealed).every(Boolean)
     onProgress({ solved, state: newState })
   }
 
-  function reveal() {
+  async function reveal(result: { answer: string; explanation: string } | null = null) {
     const newRevealed = revealed.map((v, i) => i === current ? true : v)
     setRevealed(newRevealed)
-    saveState({ revealed: newRevealed })
+
+    if (!revealedAnswers[current]) {
+      if (result != null) {
+        const newRevealedAnswers = revealedAnswers.map((v, i) => i === current ? result : v)
+        setRevealedAnswers(newRevealedAnswers)
+        saveState({ revealed: newRevealed, realAnswers: newRevealedAnswers })
+      } else {
+        const res = await fetch('/api/reveal-answer', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ gameType: 'riddle', quesNo: current, lang }),
+        })
+        const data = await res.json()
+        const newRevealedAnswers = revealedAnswers.map((v, i) => i === current ? data : v)
+        setRevealedAnswers(newRevealedAnswers)
+        saveState({ revealed: newRevealed, realAnswers: newRevealedAnswers })
+      }
+    } else {
+      saveState({ revealed: newRevealed })
+    }
   }
 
   function handleNext() {
@@ -104,12 +123,6 @@ export default function Riddle({ data, lang, progress, onProgress }: RiddleProps
   async function checkAnswer() {
     if (!userAnswer.trim() || checking) return
 
-    if (exactMatch) {
-      setCheckResults(prev => prev.map((v, i) => i === current ? { status: 'correct', feedback: text.correct } : v))
-      reveal()
-      return
-    }
-
     setChecking(true)
     setCheckResults(prev => prev.map((v, i) => i === current ? null : v))
 
@@ -119,9 +132,7 @@ export default function Riddle({ data, lang, progress, onProgress }: RiddleProps
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           gameType: 'riddle',
-          question: riddle.question,
-          correctAnswer: riddle.answer,
-          fullAnswer: riddle.explanation,
+          quesNo: current,
           userAnswer,
           lang,
         }),
@@ -140,7 +151,7 @@ export default function Riddle({ data, lang, progress, onProgress }: RiddleProps
         : v
       ))
 
-      if (status === 'correct') reveal()
+      if (status === 'correct') reveal({ answer: result.answer, explanation: result.explanation })
     } catch {
       setCheckResults(prev => prev.map((v, i) => i === current ? { status: 'wrong', feedback: text.wrong } : v))
     } finally {
@@ -212,14 +223,20 @@ export default function Riddle({ data, lang, progress, onProgress }: RiddleProps
       {isRevealed && (
         <div className="bg-stone-50 border-l-2 border-stone-300 rounded-lg p-4 mb-4">
           <div className="text-xs font-medium tracking-widest text-stone-400 uppercase mb-1">{text.answer}</div>
-          <p className="text-sm font-semibold text-stone-700 mb-1">{riddle.answer}</p>
-          <p className="text-xs text-stone-400 leading-relaxed">{riddle.explanation}</p>
+          {revealedAnswers[current] ? (
+            <>
+              <p className="text-sm font-semibold text-stone-700 mb-1">{revealedAnswers[current]!.answer}</p>
+              <p className="text-xs text-stone-400 leading-relaxed">{revealedAnswers[current]!.explanation}</p>
+            </>
+          ) : (
+            <p className="text-xs text-stone-400">Loading...</p>
+          )}
         </div>
       )}
 
       <div className="flex gap-2 mt-2">
         {!isRevealed && (
-          <button onClick={reveal} className="flex-1 bg-stone-800 text-white rounded-lg py-2.5 text-sm font-medium hover:bg-stone-700 transition-colors">
+          <button onClick={() => reveal()} className="flex-1 bg-stone-800 text-white rounded-lg py-2.5 text-sm font-medium hover:bg-stone-700 transition-colors">
             {text.reveal}
           </button>
         )}

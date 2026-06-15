@@ -41,20 +41,35 @@ export default function Sequence({ data, lang, progress, onProgress }: SequenceP
   const [checked, setChecked] = useState<boolean[]>(() =>
     progress?.state?.checked ?? data.sequences.map(() => false)
   )
+  type RevealedSequence = { answer: number; rule: string } | null
+  const [revealedSeqs, setRevealedSeqs] = useState<RevealedSequence[]>(
+    progress?.state?.revealedSeqs ?? data.sequences.map(() => null)
+  )
 
-  function saveState(updates: { answers?: string[]; checked?: boolean[] }) {
+  function saveState(updates: { answers?: string[]; checked?: boolean[]; revealedSeqs?: RevealedSequence[] }) {
     const newState = {
       answers: updates.answers ?? answers,
       checked: updates.checked ?? checked,
+      revealedSeqs: updates.revealedSeqs ?? revealedSeqs,
     }
     const solved = (updates.checked ?? checked).every(Boolean)
     onProgress({ solved, state: newState })
   }
 
-  function check(i: number) {
+  async function check(i: number) {
+    const res = await fetch('/api/check-answer', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ gameType: 'sequence', quesNo: i, userAnswer: answers[i], lang }),
+    })
+    const result = await res.json()
     const newChecked = checked.map((v, j) => j === i ? true : v)
+    const newRevealedSeqs = revealedSeqs.map((v, j) =>
+      j === i ? { answer: result.answer ?? parseInt(answers[i]), rule: result.rule ?? '' } : v
+    )
     setChecked(newChecked)
-    saveState({ checked: newChecked })
+    setRevealedSeqs(newRevealedSeqs)
+    saveState({ checked: newChecked, revealedSeqs: newRevealedSeqs })
   }
 
   function setAnswer(i: number, value: string) {
@@ -68,7 +83,7 @@ export default function Sequence({ data, lang, progress, onProgress }: SequenceP
       <p className="text-sm text-stone-400 mb-5">{data.intro}</p>
       {data.sequences.map((seq, i) => {
         const isChecked = checked[i]
-        const correct = parseInt(answers[i]) === seq.answer
+        const correct = checked[i] && revealedSeqs[i]?.answer === parseInt(answers[i])
         return (
           <div key={i} className="mb-6">
             <div className="text-xs text-stone-400 font-medium mb-2">
@@ -80,7 +95,7 @@ export default function Sequence({ data, lang, progress, onProgress }: SequenceP
                   {n === '?' ? (
                     <div className={`w-11 h-11 border-2 border-dashed rounded-lg flex items-center justify-center font-bold text-base
                       ${isChecked ? (correct ? 'border-green-400 text-green-700 bg-green-50' : 'border-red-400 text-red-700 bg-red-50') : 'border-stone-300 text-stone-400'}`}>
-                      {isChecked ? (correct ? seq.answer : '✗') : '?'}
+                      {isChecked ? (correct ? revealedSeqs[i]?.answer : '✗') : '?'}
                     </div>
                   ) : (
                     <div className="w-11 h-11 bg-stone-100 border border-stone-200 rounded-lg flex items-center justify-center font-medium text-base text-stone-700">
@@ -109,8 +124,8 @@ export default function Sequence({ data, lang, progress, onProgress }: SequenceP
               </div>
             ) : (
               <div className={`text-sm px-3 py-2 rounded-lg ${correct ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
-                {correct ? `✓ ${text.correct}` : `✗ ${text.answerIs} ${seq.answer}`}
-                {' · '}{text.rule}{seq.rule}
+                {correct ? `✓ ${text.correct}` : `✗ ${text.answerIs} ${revealedSeqs[i]?.answer}`}
+                {revealedSeqs[i]?.rule && <>{' · '}{text.rule}{revealedSeqs[i]?.rule}</>}
               </div>
             )}
           </div>

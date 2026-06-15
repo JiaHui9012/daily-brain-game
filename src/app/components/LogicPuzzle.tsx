@@ -46,10 +46,6 @@ const TEXT = {
   },
 }
 
-function normalizeAnswer(value: string) {
-  return value.toLowerCase().replace(/[\s，。！？、,.!?]/g, '')
-}
-
 export default function LogicPuzzle({ data, lang }: { data: LogicData; lang: Language }) {
   const text = TEXT[lang]
   const [hintsOpen, setHintsOpen] = useState(false)
@@ -57,23 +53,28 @@ export default function LogicPuzzle({ data, lang }: { data: LogicData; lang: Lan
   const [userAnswer, setUserAnswer] = useState('')
   const [checking, setChecking] = useState(false)
   const [checkResult, setCheckResult] = useState<{ status: CheckStatus; feedback: string } | null>(null)
+  type RevealedAnswer = { answer: string; explanation: string } | null
+  const [revealedAnswer, setRevealedAnswer] = useState<RevealedAnswer>(null)
 
-  const correctAnswer = normalizeAnswer(data.answer_short)
-  const normalizedUserAnswer = normalizeAnswer(userAnswer)
-  const exactMatch =
-    normalizedUserAnswer.length > 0 &&
-    (normalizedUserAnswer === correctAnswer ||
-      correctAnswer.includes(normalizedUserAnswer) ||
-      normalizedUserAnswer.includes(correctAnswer))
+  async function handleReveal(open: boolean, result: { answer: string; explanation: string } | null = null) {
+    setAnswerOpen(open)
+    if (open && !revealedAnswer) {
+      if (result != null) {
+        setRevealedAnswer(result)
+      } else {
+        const res = await fetch('/api/reveal-answer', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ gameType: 'logic_puzzle', lang }),
+        })
+        const data = await res.json()
+        setRevealedAnswer(data)
+      }
+    }
+  }
 
   async function checkAnswer() {
     if (!userAnswer.trim() || checking) return
-
-    if (exactMatch) {
-      setCheckResult({ status: 'correct', feedback: text.correct })
-      setAnswerOpen(true)
-      return
-    }
 
     setChecking(true)
     setCheckResult(null)
@@ -84,10 +85,6 @@ export default function LogicPuzzle({ data, lang }: { data: LogicData; lang: Lan
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           gameType: 'logic_puzzle',
-          scenario: data.scenario,
-          question: data.question,
-          correctAnswer: data.answer_short,
-          fullAnswer: data.answer,
           userAnswer,
           lang,
         }),
@@ -103,7 +100,7 @@ export default function LogicPuzzle({ data, lang }: { data: LogicData; lang: Lan
         feedback: result.feedback || (status === 'correct' ? text.correct : status === 'partial' ? text.partial : text.wrong),
       })
 
-      if (status === 'correct') setAnswerOpen(true)
+      if (status === 'correct') handleReveal(true, { answer: result.answer, explanation: result.explanation })
     } catch {
       setCheckResult({ status: 'wrong', feedback: text.wrong })
     } finally {
@@ -178,19 +175,25 @@ export default function LogicPuzzle({ data, lang }: { data: LogicData; lang: Lan
       </div>
 
       <div>
-        {!answerOpen && (
+        {/* {!answerOpen && ( */}
           <button
-            onClick={() => setAnswerOpen(true)}
+            onClick={() => handleReveal(!answerOpen)}
             className="w-full flex items-center gap-2 text-sm font-medium text-stone-700 border border-stone-300 rounded-lg px-4 py-2.5 hover:bg-stone-50 transition-colors text-left"
           >
             <span>👁</span>
             <span>{text.reveal}</span>
           </button>
-        )}
+        {/* )} */}
         {answerOpen && (
           <div className="mt-2 bg-stone-50 border border-stone-200 rounded-lg p-4">
-            <p className="text-sm font-semibold text-stone-700 mb-2">{text.answer}{data.answer_short}</p>
-            <p className="text-xs text-stone-500 leading-relaxed">{data.answer}</p>
+            {revealedAnswer ? (
+              <>
+                <p className="text-sm font-semibold text-stone-700 mb-2">{text.answer}{revealedAnswer.answer}</p>
+                <p className="text-xs text-stone-500 leading-relaxed">{revealedAnswer.explanation}</p>
+              </>
+            ) : (
+              <p className="text-xs text-stone-400">Loading...</p>
+            )}
           </div>
         )}
       </div>

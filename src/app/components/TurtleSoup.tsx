@@ -58,6 +58,25 @@ export default function TurtleSoup({ data, lang }: { data: TurtleSoupData; lang:
   const [asking, setAsking] = useState(false)
   const [qa, setQa] = useState<{ question: string; reply: string }[]>([])
   const [askError, setAskError] = useState<string | null>(null)
+  type RevealedAnswer = { answer: string; explanation: string } | null
+  const [revealedAnswer, setRevealedAnswer] = useState<RevealedAnswer>(null)
+
+  async function handleReveal(open: boolean, result: { answer: string; explanation: string } | null = null) {
+    setAnswerOpen(open)
+    if (open && !revealedAnswer) {
+      if (result != null) {
+        setRevealedAnswer(result)
+      } else {
+        const res = await fetch('/api/reveal-answer', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ gameType: 'turtle_soup', lang }),
+        })
+        const data = await res.json()
+        setRevealedAnswer(data)
+      }
+    }
+  }
 
   async function askQuestion() {
     const trimmed = question.trim()
@@ -71,9 +90,7 @@ export default function TurtleSoup({ data, lang }: { data: TurtleSoupData; lang:
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          scenario: data.scenario,
-          answer: data.answer,
-          keyPoints: data.key_points,
+          gameType: 'turtle_soup',
           question: trimmed,
           lang,
         }),
@@ -84,7 +101,7 @@ export default function TurtleSoup({ data, lang }: { data: TurtleSoupData; lang:
       setQa(prev => [...prev, { question: trimmed, reply: result.reply }])
       setQuestion('')
       if (result.isCorrect) {
-        setAnswerOpen(true)
+        handleReveal(true, { answer: result.answer, explanation: result.keyPoint })
       }
     } catch (err: unknown) {
       setAskError(err instanceof Error ? err.message : text.askError)
@@ -168,23 +185,29 @@ export default function TurtleSoup({ data, lang }: { data: TurtleSoupData; lang:
       </div>
 
       <div>
-        {!answerOpen && (
+        {/* {!answerOpen && ( */}
           <button
-            onClick={() => setAnswerOpen(!answerOpen)}
+            onClick={() => handleReveal(!answerOpen)}
             className="w-full flex items-center gap-2 text-sm font-medium text-stone-700 border border-stone-300 rounded-lg px-4 py-2.5 hover:bg-stone-50 transition-colors text-left"
           >
             <span>👁</span>
             <span>{text.reveal}</span>
           </button>
-        )}
+        {/* )} */}
         {answerOpen && (
           <div className="mt-2 bg-stone-50 border border-stone-200 rounded-lg p-4">
-            <p className="text-sm leading-relaxed text-stone-700 mb-2">
-              <strong>{text.fullStory}</strong>{data.answer}
-            </p>
-            <p className="text-xs text-stone-400 leading-relaxed">
-              <strong>{text.keyPoint}</strong>{data.key_points}
-            </p>
+            {revealedAnswer ? (
+              <>
+                <p className="text-sm leading-relaxed text-stone-700 mb-2">
+                  <strong>{text.fullStory}</strong>{revealedAnswer.answer}
+                </p>
+                <p className="text-xs text-stone-400 leading-relaxed">
+                  <strong>{text.keyPoint}</strong>{revealedAnswer.explanation}
+                </p>
+              </>
+            ) : (
+              <p className="text-xs text-stone-400">Loading...</p>
+            )}
           </div>
         )}
       </div>

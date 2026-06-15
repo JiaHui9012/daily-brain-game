@@ -75,6 +75,7 @@ export default function Sudoku({ data, lang, progress, onProgress }: SudokuProps
   const [result, setResult] = useState<CheckResult>(() =>
     progress?.solved ? 'correct' : null
   )
+  const [wrongCells, setWrongCells] = useState<{ row: number; col: number }[]>([])
 
   function saveState(newGrid: CellValue[][], newNotes: number[][][], solved = false) {
     setUserGrid(newGrid)
@@ -127,27 +128,22 @@ export default function Sudoku({ data, lang, progress, onProgress }: SudokuProps
     setResult(null)
   }
 
-  function check() {
-    let complete = true
-    let correct = true
-
-    for (let row = 0; row < 9; row++) {
-      for (let col = 0; col < 9; col++) {
-        if (data.puzzle[row][col] !== 0) continue
-        if (userGrid[row][col] === '') {
-          complete = false
-          continue
-        }
-        if (userGrid[row][col] !== data.solution[row][col]) correct = false
-      }
-    }
-
-    if (!complete) setResult('incomplete')
-    else if (correct) { 
+  async function check() {
+    const res = await fetch('/api/check-answer', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ gameType: 'sudoku', userAnswer: userGrid, lang }),
+    })
+    const result = await res.json()
+    // result: { complete, correct, wrongCells: [{ row, col }] }
+    if (!result.complete) setResult('incomplete')
+    else if (result.correct) {
       setResult('correct')
       onProgress({ solved: true, state: { userGrid, notes } })
+    } else {
+      setResult('wrong')
+      setWrongCells(result.wrongCells) // highlight wrong cells
     }
-    else setResult('wrong')
   }
 
   function reset() {
@@ -159,12 +155,7 @@ export default function Sudoku({ data, lang, progress, onProgress }: SudokuProps
   }
 
   function isWrong(row: number, col: number) {
-    return (
-      result === 'wrong' &&
-      data.puzzle[row][col] === 0 &&
-      userGrid[row][col] !== '' &&
-      userGrid[row][col] !== data.solution[row][col]
-    )
+    return result === 'wrong' && wrongCells.some(c => c.row === row && c.col === col)
   }
 
   return (

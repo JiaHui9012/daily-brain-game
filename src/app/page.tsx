@@ -52,11 +52,11 @@ function formatDate(lang: Language) {
   })
 }
 
-function getTodayKey(lang: Language) {
-  const d = new Date()
-  // return `brain_game_${lang}_${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`
-  return `brain_game_${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`
-}
+// function getTodayKey(lang: Language) {
+//   const d = new Date()
+//   // return `brain_game_${lang}_${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`
+//   return `brain_game_${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`
+// }
 
 function getStreak() {
   if (typeof window === 'undefined') return 0
@@ -105,23 +105,23 @@ export default function Home() {
       setGameType(null)
       setGameData(null)
 
-      const cacheKey = getTodayKey(lang ?? 'en')
-      const cached = localStorage.getItem(cacheKey)
-      if (cached) {
-        try {
-          const { gameTypeId, gameData } = JSON.parse(cached)
-          if (cancelled) return
-          const gameType = getGameTypes(lang ?? 'en').find((u) => u.id === gameTypeId) ?? null;
-          setGameType(gameType)
-          setGameData(gameData[lang ?? 'en'])
-          setProgress(loadProgress(gameTypeId))
-          updateStreak()
-          setStreak(getStreak())
-          setLoading(false)
-        } catch {
-          localStorage.removeItem(cacheKey)
-        }
-      } else {
+      // const cacheKey = getTodayKey(lang ?? 'en')
+      // const cached = localStorage.getItem(cacheKey)
+      // if (cached) {
+      //   try {
+      //     const { gameTypeId, gameData } = JSON.parse(cached)
+      //     if (cancelled) return
+      //     const gameType = getGameTypes(lang ?? 'en').find((u) => u.id === gameTypeId) ?? null;
+      //     setGameType(gameType)
+      //     setGameData(gameData[lang ?? 'en'])
+      //     setProgress(loadProgress(gameTypeId))
+      //     updateStreak()
+      //     setStreak(getStreak())
+      //     setLoading(false)
+      //   } catch {
+      //     localStorage.removeItem(cacheKey)
+      //   }
+      // } else {
         try {
           const res = await fetch(`/api/generate-game?lang=${lang}`)
           if (!res.ok) throw new Error(`Server error ${res.status}`)
@@ -130,7 +130,7 @@ export default function Home() {
           setGameType(data.gameType)
           setGameData(data.gameData[lang ?? 'en'])
           setProgress(loadProgress(data.gameType.id))
-          localStorage.setItem(cacheKey, JSON.stringify({ gameTypeId: data.gameType.id, gameData: data.gameData }))
+          // localStorage.setItem(cacheKey, JSON.stringify({ gameTypeId: data.gameType.id, gameData: data.gameData }))
           updateStreak()
           setStreak(getStreak())
         } catch (e: unknown) {
@@ -138,7 +138,7 @@ export default function Home() {
         } finally {
           if (!cancelled) setLoading(false)
         }
-      }
+      // }
     }
 
     load()

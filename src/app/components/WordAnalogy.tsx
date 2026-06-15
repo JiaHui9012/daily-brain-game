@@ -37,6 +37,7 @@ const TEXT = {
 
 export default function WordAnalogy({ data, lang, progress, onProgress }: WordAnalogyProps) {
   const text = TEXT[lang]
+  const [checking, setChecking] = useState(false)
   const [current, setCurrent] = useState<number>(
     () => progress?.state?.current ?? 0
   )
@@ -46,28 +47,48 @@ export default function WordAnalogy({ data, lang, progress, onProgress }: WordAn
   const [score, setScore] = useState<number>(
     () => progress?.state?.score ?? 0
   )
+  type RevealedQuestion = { answer: number; explanation: string } | null
+  const [revealedQuestions, setRevealedQuestions] = useState<RevealedQuestion[]>(
+    progress?.state?.revealedQuestions ?? data.questions.map(() => null)
+  )
 
   const q = data.questions[current]
   const sel = selected[current]
   const isDone = current >= data.questions.length
 
-  function saveState(updates: { current?: number; selected?: (number | null)[]; score?: number }) {
+  function saveState(updates: { current?: number; selected?: (number | null)[]; score?: number; revealedQuestions?: RevealedQuestion[] }) {
     const newState = {
       current: updates.current ?? current,
       selected: updates.selected ?? selected,
       score: updates.score ?? score,
+      revealedQuestions: updates.revealedQuestions ?? revealedQuestions,
     }
     const solved = (updates.selected ?? selected).every((v): v is number => v !== null)
     onProgress({ solved, state: newState })
   }
 
-  function select(idx: number) {
+  async function select(idx: number) {
     if (sel !== null) return
     const newSelected = selected.map((v, i) => i === current ? idx : v)
     setSelected(newSelected)
-    const newScore = idx === q.answer ? score + 1 : score
-    if (idx === q.answer) setScore(newScore)
-    saveState({ selected: newSelected, score: newScore })
+    setChecking(true)
+
+    // fetch answer from server
+    const res = await fetch('/api/check-answer', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ gameType: 'word_analogy', quesNo: current, userAnswer: idx, lang }),
+    })
+    const result = await res.json()
+    const newRevealedQuestions = revealedQuestions.map((v, i) =>
+      i === current ? { answer: result.answer, explanation: result.explanation } : v
+    )
+    setRevealedQuestions(newRevealedQuestions)
+    setChecking(false)
+
+    const newScore = idx === result.answer ? score + 1 : score
+    if (idx === result.answer) setScore(newScore)
+    saveState({ selected: newSelected, score: newScore, revealedQuestions: newRevealedQuestions })
   }
 
   function handleNext() {
@@ -111,8 +132,8 @@ export default function WordAnalogy({ data, lang, progress, onProgress }: WordAn
         {q.options.map((opt, idx) => {
           let cls = 'border border-stone-200 rounded-lg py-3 px-4 text-sm font-medium text-center cursor-pointer transition-colors'
           if (sel !== null) {
-            if (idx === q.answer) cls += ' bg-green-50 border-green-400 text-green-800'
-            else if (idx === sel) cls += ' bg-red-50 border-red-400 text-red-800'
+            if (idx === revealedQuestions[current]?.answer) cls += ' bg-green-50 border-green-400 text-green-800'
+            else if (!checking && idx === sel) cls += ' bg-red-50 border-red-400 text-red-800'
             else cls += ' text-stone-400'
           } else {
             cls += ' text-stone-700 hover:bg-stone-50'
@@ -125,9 +146,9 @@ export default function WordAnalogy({ data, lang, progress, onProgress }: WordAn
         })}
       </div>
 
-      {sel !== null && (
+      {sel !== null && revealedQuestions[current] && (
         <div className="bg-stone-50 border border-stone-200 rounded-lg p-3 mb-4 text-sm text-stone-600 leading-relaxed">
-          {q.explanation}
+          {revealedQuestions[current]!.explanation}
         </div>
       )}
 
